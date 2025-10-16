@@ -24,10 +24,10 @@ ipykernel>=6.27.0
 # plotly>=5.18.0
 # kaleido>=0.2.1
 
-# Optional: For model deployment (uncomment when building API)
-# fastapi>=0.104.0
-# uvicorn[standard]>=0.24.0
-# pydantic>=2.5.0
+# For model deployment (API)
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.5.0
 
 # Optional: For database (uncomment when implementing backend)
 # psycopg2-binary>=2.9.0
