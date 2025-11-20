@@ -32,6 +32,37 @@ class Demographics(BaseModel):
     disease_duration_years: float = Field(..., ge=0, description="Years since diagnosis")
     bmi: Optional[float] = Field(default=None, ge=10, le=60, description="Body Mass Index")
 
+    # IBD Type and Classification
+    ibd_type: Optional[str] = Field(
+        default="crohn",
+        description="Type of IBD: 'crohn' or 'ulcerative_colitis'",
+        pattern="^(crohn|ulcerative_colitis)$"
+    )
+    montreal_location: Optional[str] = Field(
+        default=None,
+        description="Montreal location for Crohn (L1/L2/L3/L4) or extent for UC (E1/E2/E3)",
+        pattern="^(L[1-4]|E[1-3])$"
+    )
+
+    @field_validator("montreal_location")
+    @classmethod
+    def validate_montreal_for_ibd_type(cls, v: Optional[str], info) -> Optional[str]:
+        """Validate Montreal classification matches IBD type."""
+        if v is None:
+            return v
+
+        ibd_type = info.data.get('ibd_type', 'crohn')
+
+        # Crohn should have L classification
+        if ibd_type == 'crohn' and v and not v.startswith('L'):
+            raise ValueError("Crohn disease should use L classification (L1/L2/L3/L4)")
+
+        # UC should have E classification
+        if ibd_type == 'ulcerative_colitis' and v and not v.startswith('E'):
+            raise ValueError("Ulcerative colitis should use E classification (E1/E2/E3)")
+
+        return v
+
 
 class MedicalHistory(BaseModel):
     """Patient medical history."""
