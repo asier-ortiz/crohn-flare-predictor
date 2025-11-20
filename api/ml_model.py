@@ -381,25 +381,28 @@ class ClusterStratifiedPredictor:
         if not self.is_loaded:
             raise RuntimeError("Models not loaded. Call load_models() first.")
 
-        # Extract clustering features from symptoms
-        clustering_features = []
+        # Extract clustering features from symptoms as dict
+        clustering_features = {}
         for feature in self.cluster_meta['features']:
             if feature == 'abdominal_pain':
-                clustering_features.append(symptoms.get('abdominal_pain', 0) / 10.0)
+                clustering_features[feature] = symptoms.get('abdominal_pain', 0) / 10.0
             elif feature == 'blood_in_stool':
-                clustering_features.append(float(symptoms.get('blood_in_stool', False)))
+                clustering_features[feature] = float(symptoms.get('blood_in_stool', False))
             elif feature == 'diarrhea':
-                clustering_features.append(symptoms.get('diarrhea', 0) / 10.0)
+                clustering_features[feature] = symptoms.get('diarrhea', 0) / 10.0
             elif feature == 'fatigue':
-                clustering_features.append(symptoms.get('fatigue', 0) / 10.0)
+                clustering_features[feature] = symptoms.get('fatigue', 0) / 10.0
             elif feature == 'fever':
-                clustering_features.append(float(symptoms.get('fever', False)))
+                clustering_features[feature] = float(symptoms.get('fever', False))
             elif feature == 'nausea':
-                clustering_features.append(symptoms.get('nausea', 0) / 10.0)
+                clustering_features[feature] = symptoms.get('nausea', 0) / 10.0
+
+        # Create DataFrame with feature names to avoid sklearn warning
+        import pandas as pd
+        features_df = pd.DataFrame([clustering_features])
 
         # Scale features
-        features_array = np.array(clustering_features).reshape(1, -1)
-        features_scaled = self.scaler.transform(features_array)
+        features_scaled = self.scaler.transform(features_df)
 
         # Predict cluster
         cluster_id = self.kmeans.predict(features_scaled)[0]
@@ -422,7 +425,7 @@ class ClusterStratifiedPredictor:
         symptoms: Dict,
         demographics: Dict,
         history: Dict
-    ) -> np.ndarray:
+    ):
         """
         Extract features for model prediction (same as CrohnPredictor).
 
@@ -432,34 +435,29 @@ class ClusterStratifiedPredictor:
             history: Medical history data
 
         Returns:
-            Feature array for model prediction (1, 13)
+            DataFrame with feature names (1 row, 13 columns)
         """
+        import pandas as pd
         now = datetime.now()
 
-        features = [
-            # Symptoms (6 features)
-            symptoms.get("abdominal_pain", 0) / 10.0,
-            int(symptoms.get("blood_in_stool", False)),
-            symptoms.get("diarrhea", 0) / 10.0,
-            symptoms.get("fatigue", 0) / 10.0,
-            int(symptoms.get("fever", False)),
-            symptoms.get("nausea", 0) / 10.0,
+        # Feature names must match training data
+        feature_dict = {
+            'abdominal_pain': symptoms.get("abdominal_pain", 0) / 10.0,
+            'blood_in_stool': int(symptoms.get("blood_in_stool", False)),
+            'diarrhea': symptoms.get("diarrhea", 0) / 10.0,
+            'fatigue': symptoms.get("fatigue", 0) / 10.0,
+            'fever': int(symptoms.get("fever", False)),
+            'nausea': symptoms.get("nausea", 0) / 10.0,
+            'age': demographics.get("age", 30.0),
+            'gender': 1 if demographics.get("gender") == "M" else (2 if demographics.get("gender") == "F" else 0),
+            'disease_duration_years': demographics.get("disease_duration_years", 0.0),
+            'previous_flares': history.get("previous_flares", 0),
+            'last_flare_days_ago': history.get("last_flare_days_ago", 365),
+            'month': now.month,
+            'day_of_week': now.weekday()
+        }
 
-            # Demographics (2 features)
-            demographics.get("age", 30.0),
-            1 if demographics.get("gender") == "M" else (2 if demographics.get("gender") == "F" else 0),
-
-            # History (3 features)
-            demographics.get("disease_duration_years", 0.0),
-            history.get("previous_flares", 0),
-            history.get("last_flare_days_ago", 365),
-
-            # Temporal (2 features)
-            now.month,
-            now.weekday()
-        ]
-
-        return np.array(features).reshape(1, -1)
+        return pd.DataFrame([feature_dict])
 
     def predict(
         self,
