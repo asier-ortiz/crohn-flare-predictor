@@ -114,7 +114,7 @@ run-notebook-04: ## Ejecutar solo notebook 04 (Cluster-Stratified Training)
 	uv run jupyter nbconvert --to notebook --execute notebooks/04_cluster_stratified_training.ipynb --inplace
 	@echo "✅ Modelos por cluster guardados en models/"
 
-train-clusters: ## Entrenar modelos estratificados por cluster (notebooks 01, 02, 03, 04)
+train-clusters: ## Entrenar modelos estratificados por cluster (notebooks 01, 02, 03, 04) [LEGACY]
 	@echo "🔬 Ejecutando pipeline completo con cluster stratification..."
 	@echo "📊 Paso 1/3: Exploratory Analysis + Clustering (notebook 01)..."
 	uv run jupyter nbconvert --to notebook --execute notebooks/01_exploratory_analysis.ipynb --inplace
@@ -134,6 +134,74 @@ train-clusters: ## Entrenar modelos estratificados por cluster (notebooks 01, 02
 	@echo "  - models/cluster_scaler.pkl"
 	@echo ""
 	@echo "💡 Siguiente paso: make serve (la API usará automáticamente los modelos por cluster)"
+
+run-notebook-05: ## Ejecutar solo notebook 05 (Cluster-Stratified Training CU)
+	@echo "🎯 Ejecutando Cluster-Stratified Model Training (CU)..."
+	uv run jupyter nbconvert --to notebook --execute notebooks/05_cluster_stratified_training_cu.ipynb --inplace
+	@echo "✅ Modelos CU por cluster guardados en models/cu/"
+
+train-crohn: ## Entrenar pipeline completo para Crohn (notebooks 01 V2, 02 V2, 04)
+	@echo "🔬 Pipeline completo: CROHN"
+	@echo "═══════════════════════════════════════"
+	@echo "📊 Paso 1/3: Exploratory Analysis + Clustering (Crohn)..."
+	uv run jupyter nbconvert --to notebook --execute notebooks/01_exploratory_analysis_v2.ipynb --inplace
+	@echo "✅ Clusters Crohn generados"
+	@echo "📊 Paso 2/3: Feature Engineering (Crohn)..."
+	uv run jupyter nbconvert --to notebook --execute notebooks/02_feature_engineering_v2.ipynb --inplace
+	@echo "✅ Features Crohn generadas"
+	@echo "📊 Paso 3/3: Cluster-Stratified Training (Crohn)..."
+	uv run jupyter nbconvert --to notebook --execute notebooks/04_cluster_stratified_training.ipynb --inplace
+	@echo "✅ Modelos Crohn entrenados"
+	@echo ""
+	@echo "📋 Modelos generados en models/crohn/:"
+	@echo "  - rf_severity_classifier_cluster_0.pkl"
+	@echo "  - rf_severity_classifier_cluster_1.pkl"
+	@echo "  - rf_severity_classifier_cluster_2.pkl"
+	@echo "  - cluster_kmeans.pkl"
+	@echo "  - cluster_scaler.pkl"
+
+train-cu: ## Entrenar pipeline completo para CU (notebooks 01 V2, 02 V2, 05)
+	@echo "🔬 Pipeline completo: COLITIS ULCEROSA"
+	@echo "═══════════════════════════════════════"
+	@echo "📊 Paso 1/3: Exploratory Analysis + Clustering (CU)..."
+	uv run jupyter nbconvert --to notebook --execute notebooks/01_exploratory_analysis_v2.ipynb --inplace
+	@echo "✅ Clusters CU generados"
+	@echo "📊 Paso 2/3: Feature Engineering (CU)..."
+	uv run jupyter nbconvert --to notebook --execute notebooks/02_feature_engineering_v2.ipynb --inplace
+	@echo "✅ Features CU generadas"
+	@echo "📊 Paso 3/3: Cluster-Stratified Training (CU)..."
+	uv run jupyter nbconvert --to notebook --execute notebooks/05_cluster_stratified_training_cu.ipynb --inplace
+	@echo "✅ Modelos CU entrenados"
+	@echo ""
+	@echo "📋 Modelos generados en models/cu/:"
+	@echo "  - rf_severity_classifier_cluster_0.pkl"
+	@echo "  - rf_severity_classifier_cluster_1.pkl"
+	@echo "  - rf_severity_classifier_cluster_2.pkl"
+	@echo "  - cluster_kmeans.pkl"
+	@echo "  - cluster_scaler.pkl"
+
+train-all: ## Entrenar TODOS los modelos (Crohn + CU)
+	@echo "🚀 PIPELINE COMPLETO: CROHN + CU"
+	@echo "════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "📊 Fase 1/2: Entrenando modelos CROHN..."
+	@echo "───────────────────────────────────────────────────────"
+	@$(MAKE) train-crohn
+	@echo ""
+	@echo "📊 Fase 2/2: Entrenando modelos CU..."
+	@echo "───────────────────────────────────────────────────────"
+	@$(MAKE) train-cu
+	@echo ""
+	@echo "════════════════════════════════════════════════════════"
+	@echo "✅ TODOS LOS MODELOS ENTRENADOS"
+	@echo "════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "📋 Modelos disponibles:"
+	@echo "  🔹 CROHN:  models/crohn/rf_severity_classifier_cluster_*.pkl"
+	@echo "  🔹 CU:     models/cu/rf_severity_classifier_cluster_*.pkl"
+	@echo ""
+	@echo "💡 Siguiente paso:"
+	@echo "   make serve  (La API cargará automáticamente ambos tipos)"
 
 predict: ## Ejecutar predicción de ejemplo
 	@echo "🔮 Ejecutando predicción..."

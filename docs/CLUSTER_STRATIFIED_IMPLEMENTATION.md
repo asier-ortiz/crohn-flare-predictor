@@ -341,6 +341,171 @@ uv sync
 
 ---
 
+---
+
+## 🆕 Actualización V2: Separación Crohn vs Colitis Ulcerosa
+
+### Motivación
+
+La Enfermedad de Crohn y la Colitis Ulcerosa son **dos enfermedades distintas** con:
+- **Diferentes patrones sintomáticos**
+- **Diferentes localizaciones** (Crohn: todo el tracto GI, CU: solo colon)
+- **Diferentes clasificaciones médicas** (Montreal: L1-L4 para Crohn, E1-E3 para UC)
+
+**Nueva estrategia**: Entrenar modelos completamente separados para cada tipo de EII.
+
+### Nueva Arquitectura
+
+```
+data/processed/
+├── crohn/
+│   ├── ml_dataset.csv              # Features Crohn
+│   ├── user_clusters.csv           # Clusters Crohn (k=3)
+│   └── cluster_profiles.csv
+└── cu/
+    ├── ml_dataset.csv              # Features CU
+    ├── user_clusters.csv           # Clusters CU (k=3)
+    └── cluster_profiles.csv
+
+models/
+├── crohn/
+│   ├── rf_severity_classifier_cluster_0.pkl
+│   ├── rf_severity_classifier_cluster_1.pkl
+│   ├── rf_severity_classifier_cluster_2.pkl
+│   ├── cluster_kmeans.pkl
+│   ├── cluster_scaler.pkl
+│   └── cluster_models_metadata.json
+└── cu/
+    ├── rf_severity_classifier_cluster_0.pkl
+    ├── rf_severity_classifier_cluster_1.pkl
+    ├── rf_severity_classifier_cluster_2.pkl
+    ├── cluster_kmeans.pkl
+    ├── cluster_scaler.pkl
+    └── cluster_models_metadata.json
+```
+
+### Clasificación de Montreal
+
+**Para Crohn (Localización):**
+- **L1**: Ileal → Cluster 0 (alto dolor abdominal)
+- **L2**: Colónica → Cluster 2 (alta diarrea con sangre)
+- **L3**: Ileocolónica → Cluster 1 (sintomatología mixta)
+- **L4**: Tracto GI superior → Cluster 1 (mixto)
+
+**Para CU (Extensión):**
+- **E1**: Proctitis → Cluster 0 (leve, rectal)
+- **E2**: Colitis izquierda → Cluster 1 (moderado)
+- **E3**: Pancolitis → Cluster 2 (severo, extenso)
+
+### API Actualizada
+
+**Nuevo campo en request:**
+```json
+{
+  "symptoms": {...},
+  "demographics": {
+    "age": 35,
+    "gender": "F",
+    "disease_duration_years": 5,
+    "ibd_type": "crohn",              // ← NUEVO (o "ulcerative_colitis")
+    "montreal_location": "L2"         // ← NUEVO (opcional)
+  },
+  "history": {...}
+}
+```
+
+**Lógica de inferencia de cluster:**
+
+1. **Prioridad 1**: Si el usuario proporciona `montreal_location`:
+   - Mapear directamente a cluster (confianza = 0.95)
+   - Ejemplo: `L2` → Cluster 2
+
+2. **Prioridad 2**: Si no hay Montreal, inferir de síntomas:
+   - Usar KMeans + StandardScaler
+   - Calcular confianza por distancias a centroides
+
+**Ventajas:**
+- ✅ Precisión médica: modelos específicos por enfermedad
+- ✅ Uso de clasificación Montreal cuando está disponible
+- ✅ Fallback robusto a inferencia por síntomas
+- ✅ Backward compatible
+
+### Nuevos Notebooks
+
+- **01_exploratory_analysis_v2.ipynb**: Separa Crohn/CU desde el inicio, clustering independiente
+- **02_feature_engineering_v2.ipynb**: Feature engineering separado con pesos ajustables
+- **05_cluster_stratified_training_cu.ipynb**: Training específico para CU
+
+### Comandos Makefile Actualizados
+
+```bash
+# Entrenar solo Crohn
+make train-crohn
+
+# Entrenar solo CU
+make train-cu
+
+# Entrenar AMBOS (recomendado)
+make train-all
+```
+
+El comando `train-all` ejecuta:
+1. Pipeline completo Crohn: notebooks 01 V2, 02 V2, 04
+2. Pipeline completo CU: notebooks 01 V2, 02 V2, 05
+
+### Archivos Nuevos
+
+- `api/constants.py`: Mapeos Montreal (L1-L4, E1-E3 → clusters)
+- `notebooks/01_exploratory_analysis_v2.ipynb`
+- `notebooks/02_feature_engineering_v2.ipynb`
+- `notebooks/05_cluster_stratified_training_cu.ipynb`
+
+### Modificaciones en API
+
+**`api/ml_model.py`:**
+- `ClusterStratifiedPredictor` ahora carga modelos de ambos tipos
+- Método `infer_cluster()` prioriza Montreal → síntomas
+- Selección automática de modelo según `ibd_type`
+
+**`api/schemas.py`:**
+- Nuevo campo `ibd_type` en `Demographics`
+- Nuevo campo `montreal_location` con validación
+- Valida coherencia (L codes solo para Crohn, E codes solo para UC)
+
+### Ejemplo de Uso
+
+```python
+# Request para paciente con Crohn L2 (Colónico)
+{
+  "symptoms": {
+    "abdominal_pain": 5,
+    "diarrhea": 8,
+    "blood_in_stool": true,
+    "fatigue": 6,
+    "fever": false,
+    "nausea": 3
+  },
+  "demographics": {
+    "age": 35,
+    "gender": "F",
+    "disease_duration_years": 5,
+    "ibd_type": "crohn",
+    "montreal_location": "L2"    # Usuario conoce su clasificación
+  },
+  "history": {
+    "previous_flares": 2,
+    "last_flare_days_ago": 180
+  }
+}
+```
+
+**Resultado:**
+- Usa modelo `models/crohn/rf_severity_classifier_cluster_2.pkl`
+- Montreal L2 → Cluster 2 directamente (sin inferencia)
+- Confianza del cluster: 0.95 (alta, porque es Montreal)
+
+---
+
 **Autor**: Claude Assistant + Asier Ortiz García
 **Fecha**: Noviembre 2025
-**Versión**: 1.0
+**Versión**: 2.0 (con separación Crohn/CU)

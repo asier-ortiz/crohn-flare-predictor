@@ -2,6 +2,7 @@
 ML Model loader and predictor.
 Loads and manages the trained RandomForest model.
 Supports both global model and cluster-stratified models.
+Supports separate models for Crohn's Disease and Ulcerative Colitis.
 """
 import pickle
 import numpy as np
@@ -10,6 +11,12 @@ from pathlib import Path
 from typing import Dict, Tuple, List, Optional
 import logging
 from datetime import datetime
+
+from .constants import (
+    get_cluster_from_montreal,
+    get_ibd_type_from_montreal,
+    IBD_TYPES
+)
 
 logger = logging.getLogger(__name__)
 
@@ -276,9 +283,10 @@ class ClusterStratifiedPredictor:
     Cluster-stratified predictor that:
     1. Infers patient's phenotype cluster based on symptoms
     2. Uses cluster-specific model for prediction
+    3. Supports separate models for Crohn and Ulcerative Colitis
 
     This predictor automatically determines which cluster a patient belongs to
-    and uses the specialized model trained for that cluster.
+    and uses the specialized model trained for that cluster and IBD type.
     """
 
     def __init__(self, models_dir: str = "models"):
@@ -289,101 +297,196 @@ class ClusterStratifiedPredictor:
             models_dir: Directory containing cluster models
         """
         self.models_dir = Path(models_dir)
-        self.cluster_models = {}
-        self.kmeans = None
-        self.scaler = None
-        self.metadata = None
-        self.is_loaded = False
+
+        # Separate storage for each IBD type
+        self.cluster_models = {
+            'crohn': {},
+            'ulcerative_colitis': {}
+        }
+        self.kmeans = {
+            'crohn': None,
+            'ulcerative_colitis': None
+        }
+        self.scaler = {
+            'crohn': None,
+            'ulcerative_colitis': None
+        }
+        self.metadata = {
+            'crohn': None,
+            'ulcerative_colitis': None
+        }
+        self.cluster_meta = {
+            'crohn': None,
+            'ulcerative_colitis': None
+        }
+
+        self.is_loaded = {
+            'crohn': False,
+            'ulcerative_colitis': False
+        }
 
     def load_models(self):
-        """Load cluster models, KMeans, and scaler."""
-        try:
-            # Load cluster metadata
-            metadata_path = self.models_dir / "cluster_models_metadata.json"
-            if not metadata_path.exists():
-                logger.warning(f"Cluster metadata not found: {metadata_path}")
-                return False
+        """
+        Load cluster models for both Crohn and UC.
+        Tries to load from ibd_type-specific subdirectories (crohn/, cu/)
+        Falls back to root models/ directory for backwards compatibility.
+        """
+        any_loaded = False
 
-            with open(metadata_path, 'r') as f:
-                self.metadata = json.load(f)
+        for ibd_type in ['crohn', 'ulcerative_colitis']:
+            # Try both directory structures
+            # 1. New structure: models/crohn/, models/cu/
+            # 2. Old structure: models/ (backwards compatibility for 'crohn' only)
+            if ibd_type == 'ulcerative_colitis':
+                ibd_dirs = [self.models_dir / 'cu']
+            else:
+                ibd_dirs = [self.models_dir / 'crohn', self.models_dir]
 
-            logger.info(f"Loaded cluster metadata: {self.metadata['n_clusters']} clusters")
-
-            # Load cluster models
-            for cluster_id in self.metadata['clusters'].keys():
-                model_file = self.metadata['clusters'][cluster_id]['model_file']
-                model_path = self.models_dir / model_file
-
-                if not model_path.exists():
-                    logger.warning(f"Cluster model not found: {model_path}")
+            loaded = False
+            for ibd_dir in ibd_dirs:
+                try:
+                    if self._load_ibd_models(ibd_type, ibd_dir):
+                        loaded = True
+                        any_loaded = True
+                        break
+                except Exception as e:
+                    logger.debug(f"Could not load {ibd_type} models from {ibd_dir}: {e}")
                     continue
 
-                with open(model_path, 'rb') as f:
-                    self.cluster_models[int(cluster_id)] = pickle.load(f)
-
-                logger.info(f"Loaded model for cluster {cluster_id}")
-
-            if not self.cluster_models:
-                logger.error("No cluster models loaded")
-                return False
-
-            # Load KMeans for cluster inference
-            kmeans_path = self.models_dir / "cluster_kmeans.pkl"
-            if not kmeans_path.exists():
-                logger.warning(f"KMeans not found: {kmeans_path}")
-                return False
-
-            with open(kmeans_path, 'rb') as f:
-                self.kmeans = pickle.load(f)
-            logger.info("Loaded KMeans for cluster inference")
-
-            # Load scaler
-            scaler_path = self.models_dir / "cluster_scaler.pkl"
-            if not scaler_path.exists():
-                logger.warning(f"Scaler not found: {scaler_path}")
-                return False
-
-            with open(scaler_path, 'rb') as f:
-                self.scaler = pickle.load(f)
-            logger.info("Loaded StandardScaler")
-
-            # Load cluster metadata for feature names
-            cluster_meta_path = self.models_dir / "cluster_metadata.json"
-            if cluster_meta_path.exists():
-                with open(cluster_meta_path, 'r') as f:
-                    self.cluster_meta = json.load(f)
+            if not loaded:
+                logger.warning(f"No cluster models loaded for {ibd_type}")
             else:
-                # Default features (from notebook 01)
-                self.cluster_meta = {
-                    'features': ['abdominal_pain', 'blood_in_stool', 'diarrhea',
-                                'fatigue', 'fever', 'nausea']
-                }
+                logger.info(f"✓ Loaded cluster models for {ibd_type}")
 
-            self.is_loaded = True
-            logger.info("Cluster-stratified predictor loaded successfully")
-            return True
+        return any_loaded
 
-        except Exception as e:
-            logger.error(f"Error loading cluster models: {e}", exc_info=True)
-            self.is_loaded = False
-            return False
-
-    def infer_cluster(self, symptoms: Dict) -> Tuple[int, float]:
+    def _load_ibd_models(self, ibd_type: str, models_dir: Path) -> bool:
         """
-        Infer patient's cluster based on symptoms.
+        Load models for a specific IBD type from a directory.
 
         Args:
-            symptoms: Symptom data
+            ibd_type: 'crohn' or 'ulcerative_colitis'
+            models_dir: Directory containing the models
+
+        Returns:
+            True if successfully loaded
+        """
+        # Load cluster metadata
+        metadata_path = models_dir / "cluster_models_metadata.json"
+        if not metadata_path.exists():
+            return False
+
+        with open(metadata_path, 'r') as f:
+            self.metadata[ibd_type] = json.load(f)
+
+        logger.debug(f"Loaded {ibd_type} metadata: {self.metadata[ibd_type]['n_clusters']} clusters")
+
+        # Load cluster models
+        for cluster_id in self.metadata[ibd_type]['clusters'].keys():
+            model_file = self.metadata[ibd_type]['clusters'][cluster_id]['model_file']
+            model_path = models_dir / model_file
+
+            if not model_path.exists():
+                logger.warning(f"Model not found: {model_path}")
+                continue
+
+            with open(model_path, 'rb') as f:
+                self.cluster_models[ibd_type][int(cluster_id)] = pickle.load(f)
+
+            logger.debug(f"Loaded {ibd_type} model for cluster {cluster_id}")
+
+        if not self.cluster_models[ibd_type]:
+            return False
+
+        # Load KMeans
+        kmeans_path = models_dir / "cluster_kmeans.pkl"
+        if not kmeans_path.exists():
+            return False
+
+        with open(kmeans_path, 'rb') as f:
+            self.kmeans[ibd_type] = pickle.load(f)
+
+        # Load scaler
+        scaler_path = models_dir / "cluster_scaler.pkl"
+        if not scaler_path.exists():
+            return False
+
+        with open(scaler_path, 'rb') as f:
+            self.scaler[ibd_type] = pickle.load(f)
+
+        # Load cluster metadata for feature names
+        cluster_meta_path = models_dir / "cluster_metadata.json"
+        if cluster_meta_path.exists():
+            with open(cluster_meta_path, 'r') as f:
+                self.cluster_meta[ibd_type] = json.load(f)
+        else:
+            # Default features
+            self.cluster_meta[ibd_type] = {
+                'features': ['abdominal_pain', 'blood_in_stool', 'diarrhea',
+                            'fatigue', 'fever', 'nausea']
+            }
+
+        self.is_loaded[ibd_type] = True
+        return True
+
+    def get_cluster_from_montreal(
+        self,
+        montreal_code: str,
+        ibd_type: str
+    ) -> Tuple[int, float]:
+        """
+        Get cluster ID from Montreal classification.
+        Uses high confidence since this is user-provided medical classification.
+
+        Args:
+            montreal_code: Montreal code (L1-L4 for Crohn, E1-E3 for UC)
+            ibd_type: IBD type ('crohn' or 'ulcerative_colitis')
 
         Returns:
             Tuple of (cluster_id, confidence)
         """
-        if not self.is_loaded:
-            raise RuntimeError("Models not loaded. Call load_models() first.")
+        try:
+            cluster_id = get_cluster_from_montreal(montreal_code)
+            # High confidence for user-provided classification
+            confidence = 0.95
+            logger.info(f"Using Montreal classification {montreal_code} → cluster {cluster_id}")
+            return cluster_id, confidence
+        except ValueError as e:
+            logger.warning(f"Invalid Montreal code: {e}")
+            # Fall back to inference
+            return None, 0.0
 
+    def infer_cluster(
+        self,
+        symptoms: Dict,
+        ibd_type: str,
+        montreal_code: Optional[str] = None
+    ) -> Tuple[int, float]:
+        """
+        Infer patient's cluster based on symptoms or Montreal classification.
+        Prioritizes user-provided Montreal classification if available.
+
+        Args:
+            symptoms: Symptom data
+            ibd_type: IBD type ('crohn' or 'ulcerative_colitis')
+            montreal_code: Optional Montreal classification code
+
+        Returns:
+            Tuple of (cluster_id, confidence)
+        """
+        if not self.is_loaded.get(ibd_type, False):
+            raise RuntimeError(f"Models for {ibd_type} not loaded. Call load_models() first.")
+
+        # Priority 1: Use Montreal classification if provided
+        if montreal_code:
+            cluster_id, confidence = self.get_cluster_from_montreal(montreal_code, ibd_type)
+            if cluster_id is not None:
+                return cluster_id, confidence
+
+        # Priority 2: Infer from symptoms using KMeans
         # Extract clustering features from symptoms as dict
         clustering_features = {}
-        for feature in self.cluster_meta['features']:
+        for feature in self.cluster_meta[ibd_type]['features']:
             if feature == 'abdominal_pain':
                 clustering_features[feature] = symptoms.get('abdominal_pain', 0) / 10.0
             elif feature == 'blood_in_stool':
@@ -402,13 +505,13 @@ class ClusterStratifiedPredictor:
         features_df = pd.DataFrame([clustering_features])
 
         # Scale features
-        features_scaled = self.scaler.transform(features_df)
+        features_scaled = self.scaler[ibd_type].transform(features_df)
 
         # Predict cluster
-        cluster_id = self.kmeans.predict(features_scaled)[0]
+        cluster_id = self.kmeans[ibd_type].predict(features_scaled)[0]
 
         # Calculate confidence (distance to nearest centroid)
-        distances = self.kmeans.transform(features_scaled)[0]
+        distances = self.kmeans[ibd_type].transform(features_scaled)[0]
         min_distance = distances[cluster_id]
         second_min = sorted(distances)[1]
 
@@ -416,7 +519,7 @@ class ClusterStratifiedPredictor:
         confidence = (second_min - min_distance) / (second_min + 0.001)
         confidence = min(max(confidence, 0.0), 1.0)
 
-        logger.info(f"Inferred cluster {cluster_id} with confidence {confidence:.3f}")
+        logger.info(f"Inferred {ibd_type} cluster {cluster_id} with confidence {confidence:.3f}")
 
         return int(cluster_id), float(confidence)
 
@@ -466,30 +569,44 @@ class ClusterStratifiedPredictor:
         history: Dict
     ) -> Tuple[str, float, float, List[str], Dict[str, float], int, float]:
         """
-        Make prediction using cluster-specific model.
+        Make prediction using cluster-specific model for the patient's IBD type.
 
         Args:
             symptoms: Symptom data
-            demographics: Demographic data
+            demographics: Demographic data (must include ibd_type)
             history: Medical history data
 
         Returns:
             Tuple of (risk_level, probability, confidence, contributors,
                      all_probabilities, cluster_id, cluster_confidence)
         """
-        if not self.is_loaded:
-            raise RuntimeError("Models not loaded. Call load_models() first.")
+        # Extract IBD type and Montreal classification
+        ibd_type = demographics.get('ibd_type', 'crohn')
+        montreal_code = demographics.get('montreal_location', None)
+
+        # Validate IBD type
+        if ibd_type not in ['crohn', 'ulcerative_colitis']:
+            logger.warning(f"Invalid ibd_type '{ibd_type}', defaulting to 'crohn'")
+            ibd_type = 'crohn'
+
+        # Check if models are loaded for this IBD type
+        if not self.is_loaded.get(ibd_type, False):
+            raise RuntimeError(f"Models for {ibd_type} not loaded. Call load_models() first.")
 
         try:
-            # 1. Infer cluster
-            cluster_id, cluster_confidence = self.infer_cluster(symptoms)
+            # 1. Infer cluster (prioritizes Montreal classification if provided)
+            cluster_id, cluster_confidence = self.infer_cluster(
+                symptoms=symptoms,
+                ibd_type=ibd_type,
+                montreal_code=montreal_code
+            )
 
-            # 2. Get cluster-specific model
-            if cluster_id not in self.cluster_models:
-                logger.warning(f"Cluster {cluster_id} not found, using available model")
-                cluster_id = list(self.cluster_models.keys())[0]
+            # 2. Get cluster-specific model for this IBD type
+            if cluster_id not in self.cluster_models[ibd_type]:
+                logger.warning(f"Cluster {cluster_id} not found for {ibd_type}, using available model")
+                cluster_id = list(self.cluster_models[ibd_type].keys())[0]
 
-            model = self.cluster_models[cluster_id]
+            model = self.cluster_models[ibd_type][cluster_id]
 
             # 3. Extract features for prediction
             features = self.extract_features(symptoms, demographics, history)
@@ -516,7 +633,7 @@ class ClusterStratifiedPredictor:
             # Contributors
             contributors = self._identify_contributors(symptoms, history)
 
-            logger.info(f"Cluster-stratified prediction: cluster={cluster_id}, "
+            logger.info(f"Cluster-stratified prediction: ibd_type={ibd_type}, cluster={cluster_id}, "
                        f"risk={risk_level}, prob={probability:.2f}")
 
             return (risk_level, probability, confidence, contributors,
