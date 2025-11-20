@@ -319,6 +319,10 @@ class ClusterStratifiedPredictor:
             'crohn': None,
             'ulcerative_colitis': None
         }
+        self.global_models = {
+            'crohn': None,
+            'ulcerative_colitis': None
+        }
 
         self.is_loaded = {
             'crohn': False,
@@ -425,6 +429,15 @@ class ClusterStratifiedPredictor:
                 'features': ['abdominal_pain', 'blood_in_stool', 'diarrhea',
                             'fatigue', 'fever', 'nausea']
             }
+
+        # Load global model (fallback for clusters without specific models)
+        global_model_path = models_dir / "rf_severity_classifier_global.pkl"
+        if global_model_path.exists():
+            with open(global_model_path, 'rb') as f:
+                self.global_models[ibd_type] = pickle.load(f)
+            logger.info(f"Loaded global model for {ibd_type} from {global_model_path}")
+        else:
+            logger.warning(f"Global model not found for {ibd_type} at {global_model_path}")
 
         self.is_loaded[ibd_type] = True
         return True
@@ -603,10 +616,18 @@ class ClusterStratifiedPredictor:
 
             # 2. Get cluster-specific model for this IBD type
             if cluster_id not in self.cluster_models[ibd_type]:
-                logger.warning(f"Cluster {cluster_id} not found for {ibd_type}, using available model")
-                cluster_id = list(self.cluster_models[ibd_type].keys())[0]
-
-            model = self.cluster_models[ibd_type][cluster_id]
+                logger.warning(f"Cluster {cluster_id} not found for {ibd_type}, falling back to global model")
+                # Use global model as fallback (trained on all clusters)
+                if self.global_models[ibd_type] is not None:
+                    model = self.global_models[ibd_type]
+                    cluster_confidence = 0.5  # Lower confidence when using fallback
+                else:
+                    # Last resort: use any available cluster model
+                    logger.warning(f"Global model not available, using first available cluster model")
+                    cluster_id = list(self.cluster_models[ibd_type].keys())[0]
+                    model = self.cluster_models[ibd_type][cluster_id]
+            else:
+                model = self.cluster_models[ibd_type][cluster_id]
 
             # 3. Extract features for prediction
             features = self.extract_features(symptoms, demographics, history)
