@@ -63,6 +63,8 @@ class FlareRiskPrediction(BaseModel):
     probability: float = Field(..., ge=0, le=1, description="Probability of the predicted class")
     confidence: float = Field(..., ge=0, le=1, description="Confidence gap (difference between top 2 classes)")
     probabilities: Optional[dict] = Field(default=None, description="Probability distribution for all classes")
+    cluster_id: Optional[int] = Field(default=None, description="Patient phenotype cluster (0-2) if using cluster-stratified model")
+    cluster_confidence: Optional[float] = Field(default=None, ge=0, le=1, description="Confidence in cluster assignment")
 
     @field_validator("flare_risk")
     @classmethod

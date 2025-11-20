@@ -109,6 +109,32 @@ run-notebook-03: ## Ejecutar solo notebook 03 (Model Training)
 	uv run jupyter nbconvert --to notebook --execute notebooks/03_model_training.ipynb --inplace
 	@echo "✅ Modelo guardado en models/"
 
+run-notebook-04: ## Ejecutar solo notebook 04 (Cluster-Stratified Training)
+	@echo "🎯 Ejecutando Cluster-Stratified Model Training..."
+	uv run jupyter nbconvert --to notebook --execute notebooks/04_cluster_stratified_training.ipynb --inplace
+	@echo "✅ Modelos por cluster guardados en models/"
+
+train-clusters: ## Entrenar modelos estratificados por cluster (notebooks 01, 02, 03, 04)
+	@echo "🔬 Ejecutando pipeline completo con cluster stratification..."
+	@echo "📊 Paso 1/3: Exploratory Analysis + Clustering (notebook 01)..."
+	uv run jupyter nbconvert --to notebook --execute notebooks/01_exploratory_analysis.ipynb --inplace
+	@echo "✅ Clusters generados"
+	@echo "📊 Paso 2/3: Feature Engineering (notebook 02)..."
+	uv run jupyter nbconvert --to notebook --execute notebooks/02_feature_engineering.ipynb --inplace
+	@echo "✅ Features generadas"
+	@echo "📊 Paso 3/3: Cluster-Stratified Training (notebook 04)..."
+	uv run jupyter nbconvert --to notebook --execute notebooks/04_cluster_stratified_training.ipynb --inplace
+	@echo "✅ Modelos por cluster entrenados"
+	@echo ""
+	@echo "📋 Modelos generados:"
+	@echo "  - models/rf_severity_classifier_cluster_0.pkl"
+	@echo "  - models/rf_severity_classifier_cluster_1.pkl"
+	@echo "  - models/rf_severity_classifier_cluster_2.pkl"
+	@echo "  - models/cluster_kmeans.pkl (para inferencia)"
+	@echo "  - models/cluster_scaler.pkl"
+	@echo ""
+	@echo "💡 Siguiente paso: make serve (la API usará automáticamente los modelos por cluster)"
+
 predict: ## Ejecutar predicción de ejemplo
 	@echo "🔮 Ejecutando predicción..."
 	$(PYTHON) -m src.model --predict
