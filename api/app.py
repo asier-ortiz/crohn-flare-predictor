@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from api.config import settings
-from api.ml_model import CrohnPredictor
+from api.ml_model import CrohnPredictor, ClusterStratifiedPredictor, get_predictor
 from api.schemas import (
     HealthResponse,
     PredictionRequest,
@@ -46,6 +46,7 @@ class AppState:
     predictor: Optional[CrohnPredictor] = None
     model_loaded: bool = False
     model_metadata: dict = {}
+    uses_clusters: bool = False
 
 
 app_state = AppState()
@@ -62,21 +63,24 @@ async def lifespan(app: FastAPI):
     logger.info(f"Environment: {settings.environment}")
 
     try:
-        # Load RandomForest ML model
+        # Load ML model (tries cluster-stratified first, falls back to global)
         logger.info("Initializing ML prediction engine...")
-        app_state.predictor = CrohnPredictor(settings.model_path)
-        app_state.model_loaded = app_state.predictor.load_model()
+        app_state.predictor = get_predictor(use_clusters=True)
 
-        if app_state.model_loaded:
+        if app_state.predictor:
+            app_state.model_loaded = True
+            app_state.uses_clusters = isinstance(app_state.predictor, ClusterStratifiedPredictor)
+
             app_state.model_metadata = {
                 "version": settings.model_version,
-                "type": "RandomForest",
+                "type": "ClusterStratifiedRandomForest" if app_state.uses_clusters else "RandomForest",
                 "loaded_at": date.today().isoformat(),
-                "model_path": settings.model_path
+                "uses_cluster_models": app_state.uses_clusters
             }
-            logger.info("ML model loaded successfully")
+            logger.info(f"ML model loaded successfully (cluster-stratified: {app_state.uses_clusters})")
         else:
             logger.warning("ML model not found, using rule-based fallback")
+            app_state.model_loaded = False
             app_state.model_metadata = {
                 "version": settings.model_version,
                 "type": "rule-based",
@@ -133,18 +137,31 @@ def calculate_symptom_severity(symptoms) -> float:
 def predict_flare_risk(request: PredictionRequest) -> tuple:
     """
     Predict flare risk based on symptoms and history using ML model.
-    Returns (risk_level, probability, confidence, contributors, all_probabilities).
+    Returns tuple with cluster info if using cluster-stratified model.
+
+    Returns:
+        - If cluster-stratified: (risk_level, probability, confidence, contributors,
+                                   all_probabilities, cluster_id, cluster_confidence)
+        - If global: (risk_level, probability, confidence, contributors, all_probabilities)
 
     Uses the trained RandomForest model if available, otherwise falls back
     to rule-based prediction.
     """
     if app_state.predictor:
         # Use ML model prediction
-        return app_state.predictor.predict(
+        result = app_state.predictor.predict(
             symptoms=request.symptoms.dict(),
             demographics=request.demographics.dict(),
             history=request.history.dict()
         )
+
+        # If cluster-stratified predictor, result has 7 items
+        # If global predictor, result has 5 items
+        if len(result) == 7:
+            return result  # (risk, prob, conf, contrib, all_probs, cluster_id, cluster_conf)
+        else:
+            # Global predictor - add None for cluster info
+            return result + (None, None)  # (risk, prob, conf, contrib, all_probs, None, None)
     else:
         # Fallback: Simple rule-based prediction if model not loaded
         logger.warning("Predictor not available, using basic rule-based prediction")
@@ -195,7 +212,8 @@ def predict_flare_risk(request: PredictionRequest) -> tuple:
         if not contributors:
             contributors = ["general_symptom_pattern"]
 
-        return risk_level, all_probs[risk_level], confidence, contributors[:3], all_probs
+        # Return 7 items (add None for cluster info)
+        return risk_level, all_probs[risk_level], confidence, contributors[:3], all_probs, None, None
 
 
 def get_recommendation(risk_level: str, symptoms) -> str:
@@ -259,15 +277,19 @@ async def predict_flare(request: PredictionRequest):
     Predict flare risk based on patient symptoms, demographics, and history.
 
     Returns probability of flare, risk level, and contributing factors.
+    If using cluster-stratified model, also returns patient's phenotype cluster.
     """
     try:
-        risk_level, probability, confidence, contributors, all_probs = predict_flare_risk(request)
+        # Unpack result (may include cluster info)
+        risk_level, probability, confidence, contributors, all_probs, cluster_id, cluster_conf = predict_flare_risk(request)
 
         prediction = FlareRiskPrediction(
             flare_risk=risk_level,
             probability=round(probability, 2),
             confidence=round(confidence, 2),
-            probabilities={k: round(v, 3) for k, v in all_probs.items()}
+            probabilities={k: round(v, 3) for k, v in all_probs.items()},
+            cluster_id=cluster_id,
+            cluster_confidence=round(cluster_conf, 2) if cluster_conf is not None else None
         )
 
         factors = ContributingFactors(
@@ -318,7 +340,7 @@ async def batch_predict(request: BatchPredictionRequest):
                 history=patient_data.history or None,
             )
 
-            risk_level, probability, confidence, contributors, all_probs = predict_flare_risk(
+            risk_level, probability, confidence, contributors, all_probs, cluster_id, cluster_conf = predict_flare_risk(
                 pred_request
             )
 
@@ -326,7 +348,9 @@ async def batch_predict(request: BatchPredictionRequest):
                 flare_risk=risk_level,
                 probability=round(probability, 2),
                 confidence=round(confidence, 2),
-                probabilities={k: round(v, 3) for k, v in all_probs.items()}
+                probabilities={k: round(v, 3) for k, v in all_probs.items()},
+                cluster_id=cluster_id,
+                cluster_confidence=round(cluster_conf, 2) if cluster_conf is not None else None
             )
 
             factors = ContributingFactors(
@@ -421,7 +445,7 @@ async def analyze_trends(request: TrendAnalysisRequest):
         },
     )
 
-    risk_level, probability, confidence, _ = predict_flare_risk(
+    risk_level, probability, confidence, _, _, cluster_id, cluster_conf = predict_flare_risk(
         latest_prediction_request
     )
 
@@ -429,6 +453,8 @@ async def analyze_trends(request: TrendAnalysisRequest):
         flare_risk=risk_level,
         probability=round(probability, 2),
         confidence=round(confidence, 2),
+        cluster_id=cluster_id,
+        cluster_confidence=round(cluster_conf, 2) if cluster_conf is not None else None
     )
 
     # Recommendations
