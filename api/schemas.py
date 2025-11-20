@@ -81,11 +81,40 @@ class PredictionRequest(BaseModel):
     history: MedicalHistory
 
 
+class ClusterInfo(BaseModel):
+    """Cluster assignment information."""
+    cluster_id: int = Field(..., ge=0, le=2, description="Patient phenotype cluster (0-2)")
+    cluster_confidence: float = Field(..., ge=0, le=1, description="Confidence in cluster assignment")
+    model_source: str = Field(..., description="cluster_specific / global_fallback / rule_based")
+    cluster_description: Optional[str] = Field(default=None, description="Human-readable cluster description")
+
+    @field_validator("model_source")
+    @classmethod
+    def validate_model_source(cls, v: str) -> str:
+        if v not in ["cluster_specific", "global_fallback", "rule_based"]:
+            raise ValueError("model_source must be cluster_specific, global_fallback, or rule_based")
+        return v
+
+
+class IBDInfo(BaseModel):
+    """IBD type and classification information."""
+    ibd_type: str = Field(..., description="crohn / ulcerative_colitis")
+    montreal_classification: Optional[str] = Field(default=None, description="Montreal code (L1-L4 for Crohn, E1-E3 for UC)")
+
+
+class PredictionMetadata(BaseModel):
+    """Metadata about the prediction."""
+    prediction_timestamp: str = Field(..., description="ISO timestamp of prediction")
+    model_version: str = Field(default="2.0.0", description="Model version")
+    api_version: str = Field(default="1.0.0", description="API version")
+
+
 class PredictionResponse(BaseModel):
     """Prediction result."""
     prediction: "FlareRiskPrediction"
     factors: "ContributingFactors"
     recommendation: str
+    metadata: PredictionMetadata
 
 
 class FlareRiskPrediction(BaseModel):
@@ -94,8 +123,12 @@ class FlareRiskPrediction(BaseModel):
     probability: float = Field(..., ge=0, le=1, description="Probability of the predicted class")
     confidence: float = Field(..., ge=0, le=1, description="Confidence gap (difference between top 2 classes)")
     probabilities: Optional[dict] = Field(default=None, description="Probability distribution for all classes")
-    cluster_id: Optional[int] = Field(default=None, description="Patient phenotype cluster (0-2) if using cluster-stratified model")
-    cluster_confidence: Optional[float] = Field(default=None, ge=0, le=1, description="Confidence in cluster assignment")
+    cluster_info: Optional[ClusterInfo] = Field(default=None, description="Cluster assignment details (if using cluster-stratified model)")
+    ibd_info: Optional[IBDInfo] = Field(default=None, description="IBD type and classification")
+
+    # Legacy fields (deprecated but kept for backwards compatibility)
+    cluster_id: Optional[int] = Field(default=None, description="DEPRECATED: Use cluster_info.cluster_id")
+    cluster_confidence: Optional[float] = Field(default=None, description="DEPRECATED: Use cluster_info.cluster_confidence")
 
     @field_validator("flare_risk")
     @classmethod
