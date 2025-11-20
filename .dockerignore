@@ -1,0 +1,75 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+.venv
+venv
+ENV
+
+# IDEs
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation
+README.md
+docs/
+*.md
+
+# Data (too large for image)
+data/
+*.csv
+*.json
+*.xlsx
+
+# Notebooks (not needed in production)
+notebooks/
+*.ipynb
+.ipynb_checkpoints
+
+# Tests
+tests/
+.pytest_cache
+.coverage
+htmlcov
+
+# CI/CD
+.github
+.gitlab-ci.yml
+
+# Development
+scripts/test_api.py
+scripts/test_api.sh
+scripts/api_examples.json
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
