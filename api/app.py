@@ -6,7 +6,7 @@ for inflammatory bowel disease flare risk assessment.
 """
 import logging
 from contextlib import asynccontextmanager
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import List, Optional
 
 from fastapi import FastAPI, HTTPException, status
@@ -21,6 +21,9 @@ from api.schemas import (
     PredictionResponse,
     FlareRiskPrediction,
     ContributingFactors,
+    ClusterInfo,
+    IBDInfo,
+    PredictionMetadata,
     BatchPredictionRequest,
     BatchPredictionResponse,
     PatientPredictionResult,
@@ -31,6 +34,7 @@ from api.schemas import (
     ModelInfoResponse,
     ModelMetrics,
 )
+from api.constants import CROHN_CLUSTER_DESCRIPTIONS, UC_CLUSTER_DESCRIPTIONS
 
 # Configure logging
 logging.basicConfig(
@@ -141,8 +145,10 @@ def predict_flare_risk(request: PredictionRequest) -> tuple:
 
     Returns:
         - If cluster-stratified: (risk_level, probability, confidence, contributors,
-                                   all_probabilities, cluster_id, cluster_confidence)
-        - If global: (risk_level, probability, confidence, contributors, all_probabilities)
+                                   all_probabilities, cluster_id, cluster_confidence,
+                                   model_source, ibd_type, montreal_code)
+        - If global: (risk_level, probability, confidence, contributors, all_probabilities,
+                     None, None, "rule_based", ibd_type, None)
 
     Uses the trained RandomForest model if available, otherwise falls back
     to rule-based prediction.
@@ -155,13 +161,9 @@ def predict_flare_risk(request: PredictionRequest) -> tuple:
             history=request.history.dict()
         )
 
-        # If cluster-stratified predictor, result has 7 items
-        # If global predictor, result has 5 items
-        if len(result) == 7:
-            return result  # (risk, prob, conf, contrib, all_probs, cluster_id, cluster_conf)
-        else:
-            # Global predictor - add None for cluster info
-            return result + (None, None)  # (risk, prob, conf, contrib, all_probs, None, None)
+        # Cluster-stratified predictor returns 10 items
+        # (risk, prob, conf, contrib, all_probs, cluster_id, cluster_conf, model_source, ibd_type, montreal_code)
+        return result
     else:
         # Fallback: Simple rule-based prediction if model not loaded
         logger.warning("Predictor not available, using basic rule-based prediction")
@@ -212,8 +214,12 @@ def predict_flare_risk(request: PredictionRequest) -> tuple:
         if not contributors:
             contributors = ["general_symptom_pattern"]
 
-        # Return 7 items (add None for cluster info)
-        return risk_level, all_probs[risk_level], confidence, contributors[:3], all_probs, None, None
+        # Get IBD type from request
+        ibd_type = request.demographics.ibd_type if request.demographics.ibd_type else "crohn"
+
+        # Return 10 items (rule-based fallback)
+        return (risk_level, all_probs[risk_level], confidence, contributors[:3], all_probs,
+                None, None, "rule_based", ibd_type, None)
 
 
 def get_recommendation(risk_level: str, symptoms) -> str:
@@ -280,14 +286,47 @@ async def predict_flare(request: PredictionRequest):
     If using cluster-stratified model, also returns patient's phenotype cluster.
     """
     try:
-        # Unpack result (may include cluster info)
-        risk_level, probability, confidence, contributors, all_probs, cluster_id, cluster_conf = predict_flare_risk(request)
+        # Unpack result (now returns 10 items with enhanced metadata)
+        (risk_level, probability, confidence, contributors, all_probs,
+         cluster_id, cluster_conf, model_source, ibd_type, montreal_code) = predict_flare_risk(request)
+
+        # Construct ClusterInfo object
+        cluster_info = None
+        if cluster_id is not None:
+            # Get human-readable cluster description
+            if ibd_type == "crohn":
+                cluster_description = CROHN_CLUSTER_DESCRIPTIONS.get(cluster_id)
+            else:
+                cluster_description = UC_CLUSTER_DESCRIPTIONS.get(cluster_id)
+
+            cluster_info = ClusterInfo(
+                cluster_id=cluster_id,
+                cluster_confidence=round(cluster_conf, 2),
+                model_source=model_source,
+                cluster_description=cluster_description
+            )
+
+        # Construct IBDInfo object
+        ibd_info = IBDInfo(
+            ibd_type=ibd_type,
+            montreal_classification=montreal_code
+        )
+
+        # Construct PredictionMetadata object
+        metadata = PredictionMetadata(
+            prediction_timestamp=datetime.utcnow().isoformat() + "Z",
+            model_version="2.0.0",
+            api_version="1.0.0"
+        )
 
         prediction = FlareRiskPrediction(
             flare_risk=risk_level,
             probability=round(probability, 2),
             confidence=round(confidence, 2),
             probabilities={k: round(v, 3) for k, v in all_probs.items()},
+            cluster_info=cluster_info,
+            ibd_info=ibd_info,
+            # Legacy fields for backwards compatibility
             cluster_id=cluster_id,
             cluster_confidence=round(cluster_conf, 2) if cluster_conf is not None else None
         )
@@ -306,6 +345,7 @@ async def predict_flare(request: PredictionRequest):
             prediction=prediction,
             factors=factors,
             recommendation=recommendation,
+            metadata=metadata
         )
 
     except Exception as e:
@@ -340,8 +380,30 @@ async def batch_predict(request: BatchPredictionRequest):
                 history=patient_data.history or None,
             )
 
-            risk_level, probability, confidence, contributors, all_probs, cluster_id, cluster_conf = predict_flare_risk(
+            (risk_level, probability, confidence, contributors, all_probs,
+             cluster_id, cluster_conf, model_source, ibd_type, montreal_code) = predict_flare_risk(
                 pred_request
+            )
+
+            # Construct ClusterInfo object
+            cluster_info = None
+            if cluster_id is not None:
+                if ibd_type == "crohn":
+                    cluster_description = CROHN_CLUSTER_DESCRIPTIONS.get(cluster_id)
+                else:
+                    cluster_description = UC_CLUSTER_DESCRIPTIONS.get(cluster_id)
+
+                cluster_info = ClusterInfo(
+                    cluster_id=cluster_id,
+                    cluster_confidence=round(cluster_conf, 2),
+                    model_source=model_source,
+                    cluster_description=cluster_description
+                )
+
+            # Construct IBDInfo object
+            ibd_info = IBDInfo(
+                ibd_type=ibd_type,
+                montreal_classification=montreal_code
             )
 
             prediction = FlareRiskPrediction(
@@ -349,6 +411,9 @@ async def batch_predict(request: BatchPredictionRequest):
                 probability=round(probability, 2),
                 confidence=round(confidence, 2),
                 probabilities={k: round(v, 3) for k, v in all_probs.items()},
+                cluster_info=cluster_info,
+                ibd_info=ibd_info,
+                # Legacy fields for backwards compatibility
                 cluster_id=cluster_id,
                 cluster_confidence=round(cluster_conf, 2) if cluster_conf is not None else None
             )
@@ -445,14 +510,39 @@ async def analyze_trends(request: TrendAnalysisRequest):
         },
     )
 
-    risk_level, probability, confidence, _, _, cluster_id, cluster_conf = predict_flare_risk(
+    (risk_level, probability, confidence, _, _, cluster_id, cluster_conf,
+     model_source, ibd_type, montreal_code) = predict_flare_risk(
         latest_prediction_request
+    )
+
+    # Construct ClusterInfo object
+    cluster_info = None
+    if cluster_id is not None:
+        if ibd_type == "crohn":
+            cluster_description = CROHN_CLUSTER_DESCRIPTIONS.get(cluster_id)
+        else:
+            cluster_description = UC_CLUSTER_DESCRIPTIONS.get(cluster_id)
+
+        cluster_info = ClusterInfo(
+            cluster_id=cluster_id,
+            cluster_confidence=round(cluster_conf, 2),
+            model_source=model_source,
+            cluster_description=cluster_description
+        )
+
+    # Construct IBDInfo object
+    ibd_info = IBDInfo(
+        ibd_type=ibd_type,
+        montreal_classification=montreal_code
     )
 
     risk_assessment = FlareRiskPrediction(
         flare_risk=risk_level,
         probability=round(probability, 2),
         confidence=round(confidence, 2),
+        cluster_info=cluster_info,
+        ibd_info=ibd_info,
+        # Legacy fields for backwards compatibility
         cluster_id=cluster_id,
         cluster_confidence=round(cluster_conf, 2) if cluster_conf is not None else None
     )

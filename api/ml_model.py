@@ -615,19 +615,24 @@ class ClusterStratifiedPredictor:
             )
 
             # 2. Get cluster-specific model for this IBD type
+            model_source = "cluster_specific"  # Track which model is used
+
             if cluster_id not in self.cluster_models[ibd_type]:
                 logger.warning(f"Cluster {cluster_id} not found for {ibd_type}, falling back to global model")
                 # Use global model as fallback (trained on all clusters)
                 if self.global_models[ibd_type] is not None:
                     model = self.global_models[ibd_type]
                     cluster_confidence = 0.5  # Lower confidence when using fallback
+                    model_source = "global_fallback"
                 else:
                     # Last resort: use any available cluster model
                     logger.warning(f"Global model not available, using first available cluster model")
                     cluster_id = list(self.cluster_models[ibd_type].keys())[0]
                     model = self.cluster_models[ibd_type][cluster_id]
+                    model_source = "cluster_specific"
             else:
                 model = self.cluster_models[ibd_type][cluster_id]
+                model_source = "cluster_specific"
 
             # 3. Extract features for prediction
             features = self.extract_features(symptoms, demographics, history)
@@ -655,10 +660,10 @@ class ClusterStratifiedPredictor:
             contributors = self._identify_contributors(symptoms, history)
 
             logger.info(f"Cluster-stratified prediction: ibd_type={ibd_type}, cluster={cluster_id}, "
-                       f"risk={risk_level}, prob={probability:.2f}")
+                       f"risk={risk_level}, prob={probability:.2f}, model_source={model_source}")
 
             return (risk_level, probability, confidence, contributors,
-                   all_probs, cluster_id, cluster_confidence)
+                   all_probs, cluster_id, cluster_confidence, model_source, ibd_type, montreal_code)
 
         except Exception as e:
             logger.error(f"Error in cluster-stratified prediction: {e}", exc_info=True)
