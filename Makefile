@@ -32,14 +32,20 @@ clean: ## Limpiar archivos temporales y cache
 	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
 	@echo "✅ Limpieza completada"
 
-test: ## Ejecutar tests con pytest
-	@echo "Ejecutando tests..."
-	$(PYTEST)
+test: ## Ejecutar tests de integración (requiere servidor activo en :8001)
+	@echo "🧪 Ejecutando tests de integración..."
+	@echo "⚠️  Asegúrate de que el servidor esté corriendo: make serve"
+	@echo ""
+	$(PYTEST) --no-cov scripts/test_api.py
+	@echo ""
+	@echo "✅ Tests de integración completados"
 
-test-cov: ## Ejecutar tests con cobertura
-	@echo "Ejecutando tests con cobertura..."
-	$(PYTEST) --cov=api --cov-report=html --cov-report=term
+test-unit: ## Ejecutar tests unitarios con cobertura
+	@echo "🧪 Ejecutando tests unitarios con cobertura..."
+	$(PYTEST) tests/ --cov=api --cov-report=html --cov-report=term
 	@echo "📊 Reporte de cobertura generado en htmlcov/index.html"
+
+test-integration: test ## Alias para 'test' (tests de integración)
 
 format: ## Formatear código con Black
 	@echo "Formateando código..."
@@ -51,7 +57,9 @@ lint: ## Verificar código con flake8
 	$(FLAKE8) api/ scripts/
 	@echo "✅ Verificación completada"
 
-check: format lint test ## Ejecutar formato, lint y tests
+check: format lint ## Ejecutar formato y lint (sin tests)
+
+check-all: format lint test ## Ejecutar formato, lint y tests (requiere servidor)
 
 serve: ## Iniciar servidor API en modo desarrollo
 	@echo "🚀 Iniciando servidor API..."
