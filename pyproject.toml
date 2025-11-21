@@ -55,8 +55,6 @@ Issues = "https://github.com/asier-ortiz/crohn-flare-predictor/issues"
 dev = [
     "black>=23.12.0",
     "flake8>=6.1.0",
-    "pytest>=7.4.0",
-    "pytest-cov>=4.1.0",
     "ipython>=8.18.0",
 ]
 
@@ -98,32 +96,6 @@ extend-exclude = '''
   | models
 )/
 '''
-
-[tool.pytest.ini_options]
-testpaths = ["tests", "scripts"]
-python_files = "test_*.py"
-python_classes = "Test*"
-python_functions = "test_*"
-addopts = "-v"
-
-[tool.coverage.run]
-source = ["api"]
-omit = [
-    "*/tests/*",
-    "*/test_*.py",
-    "*/__init__.py",
-    "*/scripts/*",
-]
-
-[tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "def __repr__",
-    "raise AssertionError",
-    "raise NotImplementedError",
-    "if __name__ == .__main__.:",
-    "if TYPE_CHECKING:",
-]
 
 [tool.hatch.build.targets.wheel]
 packages = ["api"]

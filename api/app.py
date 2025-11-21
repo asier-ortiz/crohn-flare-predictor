@@ -106,7 +106,7 @@ app = FastAPI(
     description="Stateless ML API service for predicting Crohn's disease flares",
     version=settings.version,
     docs_url="/docs",
-    redoc_url="/redoc",
+    redoc_url=None,  # ReDoc disabled - using only Swagger
     lifespan=lifespan,
 )
 

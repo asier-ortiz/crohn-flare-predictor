@@ -61,11 +61,9 @@ crohn-flare-predictor/
 
 Documentación completa disponible en [`./docs`](docs/):
 
-- **[Guía de Integración](docs/INTEGRATION.md)** - Para desarrolladores del equipo web
 - **[Referencia de API](docs/API_REFERENCE.md)** - Documentación completa de endpoints
-- **[Arquitectura](docs/ARCHITECTURE.md)** - Decisiones de diseño
-- **[Desarrollo](docs/DEVELOPMENT.md)** - Setup y flujo de trabajo
-- **[Deployment](docs/DEPLOYMENT.md)** - Guía de despliegue
+- **[Guía de Integración](docs/INTEGRATION.md)** - Para desarrolladores del equipo web
+- **[Guía Web App](docs/WEB_APP_GUIDE.md)** - Guía completa para la aplicación web
 
 ## 🚀 Instalación
 
@@ -209,7 +207,6 @@ El servidor estará disponible en `http://localhost:8000`
 #### Documentación Interactiva
 
 - Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
 
 ## 🔌 Endpoints de la API
 
@@ -566,75 +563,6 @@ Retorna información sobre el modelo activo.
   },
   "features_count": 45
 }
-```
-
-## 🧪 Testing
-
-El proyecto incluye dos tipos de tests:
-
-### Tests Unitarios
-
-Tests standalone que verifican la lógica de negocio sin requerir servidor activo:
-
-```bash
-# Ejecutar tests unitarios con cobertura
-make test-unit
-
-# O con pytest directamente
-pytest tests/ --cov=api --cov-report=html --cov-report=term
-```
-
-**Cobertura actual:**
-- `api/schemas.py`: 97% (15 tests - validación de schemas Pydantic)
-- `api/ml_model.py`: 22% (7 tests - extracción de features)
-- **Total general**: 31%
-
-**Tests incluidos:**
-- ✅ Validación de schemas (síntomas, demografía, historia médica)
-- ✅ Validación de Montreal Classification (L1-L4 para Crohn, E1-E3 para CU)
-- ✅ Extracción y generación de 34 features (13 base + 21 derivadas)
-- ✅ Valores por defecto y tipos de datos
-
-### Tests de Integración
-
-Tests que verifican los endpoints de la API (requieren servidor activo en puerto 8001):
-
-```bash
-# 1. Iniciar el servidor en una terminal
-make serve
-
-# 2. En otra terminal, ejecutar tests de integración
-make test
-# o directamente: make test-integration
-```
-
-**Tests incluidos:**
-- ✅ Health check
-- ✅ Predicción individual
-- ✅ Predicción por lotes
-- ✅ Análisis de tendencias
-- ✅ Información del modelo
-
-### Ejecutar Todos los Tests
-
-Para ejecutar formato, lint y tests juntos:
-
-```bash
-# Solo formato y lint (sin tests)
-make check
-
-# Formato, lint y tests (requiere servidor activo)
-make check-all
-```
-
-### Ver Reporte de Cobertura
-
-Después de ejecutar `make test-unit`, abre el reporte HTML:
-
-```bash
-open htmlcov/index.html  # macOS
-xdg-open htmlcov/index.html  # Linux
-start htmlcov/index.html  # Windows
 ```
 
 ## 🔧 Desarrollo
