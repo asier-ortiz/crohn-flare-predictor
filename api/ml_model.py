@@ -21,6 +21,118 @@ from .constants import (
 logger = logging.getLogger(__name__)
 
 
+def calculate_temporal_features_from_records(
+    daily_records: List[Dict],
+    ibd_type: str = 'crohn'
+) -> Optional[Dict]:
+    """
+    Calculate temporal features from an array of daily symptom records.
+
+    This function replicates the logic from notebooks/03_advanced_feature_engineering.ipynb
+    to ensure consistency between training and prediction.
+
+    Args:
+        daily_records: List of dicts with 'date' and 'symptoms' keys
+        ibd_type: Type of IBD ('crohn' or 'ulcerative_colitis')
+
+    Returns:
+        Dict with temporal features, or None if insufficient data
+
+    Required features (6):
+        - pain_trend_7d: 7-day mean of pain
+        - diarrhea_trend_7d: 7-day mean of diarrhea
+        - fatigue_trend_7d: 7-day mean of fatigue
+        - symptom_volatility_7d: 7-day std of total symptom score
+        - symptom_change_rate: Change from 7 days ago
+        - days_since_low_symptoms: Consecutive days with high symptoms
+    """
+    if len(daily_records) < 7:
+        logger.debug(f"Insufficient records for temporal features: {len(daily_records)} < 7")
+        return None
+
+    # Sort by date to ensure chronological order
+    sorted_records = sorted(daily_records, key=lambda x: x['date'])
+
+    # Extract symptom values (normalized to 0-1)
+    pain_values = []
+    diarrhea_values = []
+    fatigue_values = []
+    symptom_scores = []
+
+    for record in sorted_records:
+        symptoms = record['symptoms']
+
+        # Normalize to 0-1 scale
+        pain_norm = symptoms.get('abdominal_pain', 0) / 10.0
+        diarrhea_norm = symptoms.get('diarrhea', 0) / 10.0
+        fatigue_norm = symptoms.get('fatigue', 0) / 10.0
+        nausea_norm = symptoms.get('nausea', 0) / 10.0
+        blood_int = int(symptoms.get('blood_in_stool', False))
+        fever_int = int(symptoms.get('fever', False))
+
+        pain_values.append(pain_norm)
+        diarrhea_values.append(diarrhea_norm)
+        fatigue_values.append(fatigue_norm)
+
+        # Calculate total_symptom_score (same weights as notebook)
+        if ibd_type == 'crohn':
+            score = (
+                pain_norm * 1.2 +
+                diarrhea_norm * 1.3 +
+                fatigue_norm * 1.0 +
+                nausea_norm * 0.8 +
+                blood_int * 2.0 +
+                fever_int * 1.5
+            )
+        else:  # UC - blood and diarrhea weigh more
+            score = (
+                pain_norm * 1.0 +
+                diarrhea_norm * 1.5 +
+                fatigue_norm * 1.0 +
+                nausea_norm * 0.8 +
+                blood_int * 2.5 +
+                fever_int * 1.5
+            )
+        symptom_scores.append(score)
+
+    # 1. Rolling means (trends) - last 7 days
+    pain_trend_7d = float(np.mean(pain_values[-7:]))
+    diarrhea_trend_7d = float(np.mean(diarrhea_values[-7:]))
+    fatigue_trend_7d = float(np.mean(fatigue_values[-7:]))
+
+    # 2. Volatility (standard deviation of symptom scores)
+    symptom_volatility_7d = float(np.std(symptom_scores[-7:]))
+
+    # 3. Change rate (current vs 7 days ago)
+    if len(symptom_scores) >= 7:
+        symptom_change_rate = float(symptom_scores[-1] - symptom_scores[-7])
+    else:
+        symptom_change_rate = 0.0
+
+    # 4. Days since low symptoms (consecutive days with high symptoms)
+    # High symptoms = total_symptom_score > 3.0
+    days_since_low = 0
+    for score in reversed(symptom_scores):
+        if score > 3.0:
+            days_since_low += 1
+        else:
+            break
+
+    temporal_features = {
+        'pain_trend_7d': pain_trend_7d,
+        'diarrhea_trend_7d': diarrhea_trend_7d,
+        'fatigue_trend_7d': fatigue_trend_7d,
+        'symptom_volatility_7d': symptom_volatility_7d,
+        'symptom_change_rate': symptom_change_rate,
+        'days_since_low_symptoms': days_since_low
+    }
+
+    logger.info(f"Calculated temporal features from {len(sorted_records)} days of data")
+    logger.debug(f"Temporal features: {temporal_features}")
+
+    return temporal_features
+
+
 class CrohnPredictor:
     """
     Wrapper for the trained ML model.
@@ -695,7 +807,8 @@ class ClusterStratifiedPredictor:
         symptoms: Dict,
         demographics: Dict,
         history: Dict,
-        temporal_features: Dict = None
+        temporal_features: Dict = None,
+        daily_records: List[Dict] = None
     ) -> Tuple[str, float, float, List[str], Dict[str, float], int, float]:
         """
         Make prediction using cluster-specific model for the patient's IBD type.
@@ -704,7 +817,8 @@ class ClusterStratifiedPredictor:
             symptoms: Symptom data
             demographics: Demographic data (must include ibd_type)
             history: Medical history data
-            temporal_features: Optional temporal features from user history
+            temporal_features: DEPRECATED - Optional temporal features (for backward compatibility)
+            daily_records: Optional list of daily symptom records for temporal feature calculation
 
         Returns:
             Tuple of (risk_level, probability, confidence, contributors,
@@ -724,6 +838,18 @@ class ClusterStratifiedPredictor:
             raise RuntimeError(f"Models for {ibd_type} not loaded. Call load_models() first.")
 
         try:
+            # Calculate temporal features from daily_records if provided
+            if daily_records and len(daily_records) >= 7:
+                temporal_features = calculate_temporal_features_from_records(
+                    daily_records=daily_records,
+                    ibd_type=ibd_type
+                )
+                logger.info(f"Calculated temporal features from {len(daily_records)} daily records")
+            elif temporal_features:
+                logger.info("Using provided temporal features (backward compatibility mode)")
+            else:
+                logger.info("No temporal features available, using fallback values")
+
             # 1. Infer cluster (prioritizes Montreal classification if provided)
             cluster_id, cluster_confidence = self.infer_cluster(
                 symptoms=symptoms,

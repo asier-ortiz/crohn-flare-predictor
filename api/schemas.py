@@ -141,13 +141,11 @@ class MedicalHistory(BaseModel):
 
 class TemporalFeatures(BaseModel):
     """
+    **DEPRECATED** - These features are now calculated automatically by the API.
+
     Temporal features calculated from user's symptom history.
-
-    **Optional but recommended** - These features significantly improve prediction accuracy
-    when the web app has stored historical symptom data (7+ days).
-
-    If not provided, the API will use fallback values based on current symptoms only,
-    which may result in less accurate predictions.
+    This class is kept for backwards compatibility but is no longer used.
+    Use daily_records in PredictionRequest instead.
     """
     pain_trend_7d: Optional[float] = Field(default=None, ge=0, le=1, description="7-day normalized pain trend (0=improving, 1=worsening)", examples=[0.15])
     diarrhea_trend_7d: Optional[float] = Field(default=None, ge=0, le=1, description="7-day normalized diarrhea trend (0=improving, 1=worsening)", examples=[0.10])
@@ -172,36 +170,81 @@ class TemporalFeatures(BaseModel):
     }
 
 
+# Daily symptom record (must be defined before PredictionRequest)
+class DailySymptomRecord(BaseModel):
+    """Daily symptom record."""
+    date: date
+    symptoms: Symptoms
+
+
 # Prediction requests
 class PredictionRequest(BaseModel):
     """
     Complete prediction request for a single patient.
 
-    This is the main request format for the /predict endpoint. Include all
-    current symptoms, patient demographics, medical history, and optionally
-    temporal features if you have 7+ days of historical symptom data.
+    This is the main request format for the /predict endpoint. Provide daily symptom
+    records (minimum 1 day for current symptoms, recommended 7-14 days for improved
+    accuracy through temporal feature calculation).
+
+    ## How It Works
+
+    - **Day 1 (no history)**: Send 1 daily record → API uses fallback → basic prediction
+    - **Day 7+ (with history)**: Send 7-14 daily records → API calculates temporal features → improved prediction
+
+    The API automatically calculates temporal features (trends, volatility, change rates)
+    from the daily records when 7+ days are provided, eliminating the need for external
+    feature calculation.
     """
-    symptoms: Symptoms
+    daily_records: List[DailySymptomRecord] = Field(
+        ...,
+        min_length=1,
+        description="Daily symptom records. Minimum 1 (today), recommended 7-14 for temporal analysis"
+    )
     demographics: Demographics
     history: MedicalHistory
-    temporal_features: Optional[TemporalFeatures] = Field(
-        default=None,
-        description="Optional temporal features calculated from historical data. If omitted, API uses fallback values."
-    )
 
     model_config = {
         "json_schema_extra": {
             "examples": [
                 {
-                    "symptoms": {
-                        "abdominal_pain": 7,
-                        "diarrhea": 6,
-                        "fatigue": 5,
-                        "fever": False,
-                        "weight_change": -1.5,
-                        "blood_in_stool": False,
-                        "nausea": 3
-                    },
+                    "daily_records": [
+                        {
+                            "date": "2024-01-08",
+                            "symptoms": {
+                                "abdominal_pain": 5,
+                                "diarrhea": 4,
+                                "fatigue": 3,
+                                "fever": False,
+                                "weight_change": 0.0,
+                                "blood_in_stool": False,
+                                "nausea": 2
+                            }
+                        },
+                        {
+                            "date": "2024-01-09",
+                            "symptoms": {
+                                "abdominal_pain": 6,
+                                "diarrhea": 5,
+                                "fatigue": 4,
+                                "fever": False,
+                                "weight_change": -0.5,
+                                "blood_in_stool": False,
+                                "nausea": 3
+                            }
+                        },
+                        {
+                            "date": "2024-01-14",
+                            "symptoms": {
+                                "abdominal_pain": 7,
+                                "diarrhea": 6,
+                                "fatigue": 5,
+                                "fever": False,
+                                "weight_change": -1.5,
+                                "blood_in_stool": False,
+                                "nausea": 3
+                            }
+                        }
+                    ],
                     "demographics": {
                         "age": 32,
                         "gender": "F",
@@ -216,14 +259,6 @@ class PredictionRequest(BaseModel):
                         "last_flare_days_ago": 120,
                         "surgery_history": False,
                         "smoking_status": "never"
-                    },
-                    "temporal_features": {
-                        "pain_trend_7d": 0.15,
-                        "diarrhea_trend_7d": 0.10,
-                        "fatigue_trend_7d": 0.05,
-                        "symptom_volatility_7d": 1.2,
-                        "symptom_change_rate": 0.08,
-                        "days_since_low_symptoms": 5
                     }
                 }
             ]
@@ -316,17 +351,18 @@ class ContributingFactors(BaseModel):
 
 
 # Trend analysis
-class DailySymptomRecord(BaseModel):
-    """Daily symptom record."""
-    date: date
-    symptoms: Symptoms
-
-
 class TrendAnalysisRequest(BaseModel):
-    """Trend analysis request."""
+    """
+    Trend analysis request for temporal symptom patterns.
+
+    Requires minimum 7 days of symptom history to analyze trends and patterns.
+    Recommended 14-30 days for more reliable trend detection.
+    """
     patient_id: str
     daily_records: List[DailySymptomRecord] = Field(..., min_length=7)
-    window_days: int = Field(default=14, ge=7, le=90)
+    demographics: Demographics
+    history: MedicalHistory
+    window_days: int = Field(default=14, ge=7, le=90, description="Analysis window in days")
 
 
 class TrendAnalysisResponse(BaseModel):
