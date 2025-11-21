@@ -24,9 +24,6 @@ from api.schemas import (
     ClusterInfo,
     IBDInfo,
     PredictionMetadata,
-    BatchPredictionRequest,
-    BatchPredictionResponse,
-    PatientPredictionResult,
     TrendAnalysisRequest,
     TrendAnalysisResponse,
     AnalysisPeriod,
@@ -430,137 +427,20 @@ async def predict_flare(request: PredictionRequest):
 
 
 @app.post(
-    "/predict/batch",
-    response_model=BatchPredictionResponse,
-    status_code=status.HTTP_200_OK,
-    tags=["Predictions"],
-    summary="Batch Predict for Multiple Patients",
-    response_description="Batch prediction results with success/failure counts",
-)
-async def batch_predict(request: BatchPredictionRequest):
-    """
-    Perform batch predictions for multiple patients in a single request.
-
-    This endpoint is optimized for processing multiple patients efficiently,
-    such as when generating daily risk reports for all patients in a clinic.
-
-    ## Limits
-
-    - **Maximum**: 100 patients per request
-    - **Minimum**: 1 patient
-
-    ## Error Handling
-
-    Individual patient prediction failures do not abort the entire batch.
-    The response includes:
-    - Successfully processed predictions
-    - Count of failed predictions
-    - List of error messages for failed patients
-
-    ## Use Cases
-
-    - Daily batch risk assessment for clinic patients
-    - Retrospective analysis of patient cohorts
-    - Bulk data processing for research
-
-    ## Performance
-
-    - Processing time: ~50-100ms per patient
-    - Expected total time for 100 patients: 5-10 seconds
-    """
-    results = []
-    errors = []
-    failed_count = 0
-
-    for patient_data in request.patients:
-        try:
-            # Create a prediction request
-            pred_request = PredictionRequest(
-                symptoms=patient_data.symptoms,
-                demographics=patient_data.demographics,
-                history=patient_data.history or None,
-            )
-
-            (risk_level, probability, confidence, contributors, all_probs,
-             cluster_id, cluster_conf, model_source, ibd_type, montreal_code) = predict_flare_risk(
-                pred_request
-            )
-
-            # Construct ClusterInfo object
-            cluster_info = None
-            if cluster_id is not None:
-                if ibd_type == "crohn":
-                    cluster_description = CROHN_CLUSTER_DESCRIPTIONS.get(cluster_id)
-                else:
-                    cluster_description = UC_CLUSTER_DESCRIPTIONS.get(cluster_id)
-
-                cluster_info = ClusterInfo(
-                    cluster_id=cluster_id,
-                    cluster_confidence=round(cluster_conf, 2),
-                    model_source=model_source,
-                    cluster_description=cluster_description
-                )
-
-            # Construct IBDInfo object
-            ibd_info = IBDInfo(
-                ibd_type=ibd_type,
-                montreal_classification=montreal_code
-            )
-
-            prediction = FlareRiskPrediction(
-                flare_risk=risk_level,
-                probability=round(probability, 2),
-                confidence=round(confidence, 2),
-                probabilities={k: round(v, 3) for k, v in all_probs.items()},
-                cluster_info=cluster_info,
-                ibd_info=ibd_info,
-                # Legacy fields for backwards compatibility
-                cluster_id=cluster_id,
-                cluster_confidence=round(cluster_conf, 2) if cluster_conf is not None else None
-            )
-
-            factors = ContributingFactors(
-                top_contributors=contributors,
-                symptom_severity_score=round(
-                    calculate_symptom_severity(patient_data.symptoms), 2
-                ),
-            )
-
-            results.append(
-                PatientPredictionResult(
-                    patient_id=patient_data.patient_id,
-                    prediction=prediction,
-                    factors=factors,
-                )
-            )
-
-        except Exception as e:
-            failed_count += 1
-            errors.append(f"Patient {patient_data.patient_id}: {str(e)}")
-
-    return BatchPredictionResponse(
-        results=results,
-        processed_count=len(results),
-        failed_count=failed_count,
-        errors=errors if errors else None,
-    )
-
-
-@app.post(
-    "/analyze/trends",
+    "/predict/trends",
     response_model=TrendAnalysisResponse,
     status_code=status.HTTP_200_OK,
-    tags=["Analysis"],
-    summary="Analyze Symptom Trends Over Time",
-    response_description="Trend analysis with risk assessment and recommendations",
+    tags=["Predictions"],
+    summary="Predict Risk Based on Symptom Trends",
+    response_description="Trend-based prediction with risk assessment and recommendations",
 )
-async def analyze_trends(request: TrendAnalysisRequest):
+async def predict_trends(request: TrendAnalysisRequest):
     """
-    Analyze temporal patterns in patient symptoms over a time period.
+    Predict flare risk based on temporal patterns in symptom data.
 
-    This endpoint provides longitudinal analysis of symptom data to identify
-    concerning patterns, trends, and changes that may indicate disease progression
-    or treatment response.
+    This endpoint analyzes symptom trends over time to identify concerning patterns
+    and predict flare risk. Unlike the /predict endpoint which uses current symptoms,
+    this endpoint requires historical data (7+ days) to detect temporal trends.
 
     ## Requirements
 
