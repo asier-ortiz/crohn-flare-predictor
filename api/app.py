@@ -155,10 +155,15 @@ def predict_flare_risk(request: PredictionRequest) -> tuple:
     """
     if app_state.predictor:
         # Use ML model prediction
+        temporal_features_dict = None
+        if request.temporal_features:
+            temporal_features_dict = request.temporal_features.dict()
+
         result = app_state.predictor.predict(
             symptoms=request.symptoms.dict(),
             demographics=request.demographics.dict(),
-            history=request.history.dict()
+            history=request.history.dict(),
+            temporal_features=temporal_features_dict
         )
 
         # Cluster-stratified predictor returns 10 items

@@ -540,30 +540,40 @@ class ClusterStratifiedPredictor:
         self,
         symptoms: Dict,
         demographics: Dict,
-        history: Dict
+        history: Dict,
+        temporal_features: Dict = None
     ):
         """
-        Extract features for model prediction (same as CrohnPredictor).
+        Extract features for model prediction including derived features.
 
         Args:
             symptoms: Symptom data
             demographics: Demographic data
             history: Medical history data
+            temporal_features: Optional temporal features from user history
 
         Returns:
-            DataFrame with feature names (1 row, 13 columns)
+            DataFrame with feature names (1 row, N columns)
         """
         import pandas as pd
         now = datetime.now()
 
-        # Feature names must match training data
+        # Normalize symptom values (0-10 scale to 0-1)
+        pain_norm = symptoms.get("abdominal_pain", 0) / 10.0
+        diarrhea_norm = symptoms.get("diarrhea", 0) / 10.0
+        fatigue_norm = symptoms.get("fatigue", 0) / 10.0
+        nausea_norm = symptoms.get("nausea", 0) / 10.0
+        fever_int = int(symptoms.get("fever", False))
+        blood_int = int(symptoms.get("blood_in_stool", False))
+
+        # Base features (original 13)
         feature_dict = {
-            'abdominal_pain': symptoms.get("abdominal_pain", 0) / 10.0,
-            'blood_in_stool': int(symptoms.get("blood_in_stool", False)),
-            'diarrhea': symptoms.get("diarrhea", 0) / 10.0,
-            'fatigue': symptoms.get("fatigue", 0) / 10.0,
-            'fever': int(symptoms.get("fever", False)),
-            'nausea': symptoms.get("nausea", 0) / 10.0,
+            'abdominal_pain': pain_norm,
+            'blood_in_stool': blood_int,
+            'diarrhea': diarrhea_norm,
+            'fatigue': fatigue_norm,
+            'fever': fever_int,
+            'nausea': nausea_norm,
             'age': demographics.get("age", 30.0),
             'gender': 1 if demographics.get("gender") == "M" else (2 if demographics.get("gender") == "F" else 0),
             'disease_duration_years': demographics.get("disease_duration_years", 0.0),
@@ -573,13 +583,87 @@ class ClusterStratifiedPredictor:
             'day_of_week': now.weekday()
         }
 
+        # ===== DERIVED FEATURES =====
+        # These are calculated automatically from base features
+
+        # 1. Symptom Aggregations
+        ibd_type = demographics.get('ibd_type', 'crohn')
+        if ibd_type == 'crohn':
+            feature_dict['total_symptom_score'] = (
+                pain_norm * 1.2 + diarrhea_norm * 1.3 + fatigue_norm * 1.0 +
+                nausea_norm * 0.8 + blood_int * 2.0 + fever_int * 1.5
+            )
+        else:  # UC - blood and diarrhea weigh more
+            feature_dict['total_symptom_score'] = (
+                pain_norm * 1.0 + diarrhea_norm * 1.5 + fatigue_norm * 1.0 +
+                nausea_norm * 0.8 + blood_int * 2.5 + fever_int * 1.5
+            )
+
+        feature_dict['gi_score'] = pain_norm + diarrhea_norm + nausea_norm + (blood_int * 2)
+        feature_dict['systemic_score'] = fatigue_norm + (fever_int * 2)
+        feature_dict['red_flag_score'] = (blood_int * 3) + (fever_int * 2) + (1 if pain_norm >= 0.7 else 0)
+        feature_dict['symptom_count'] = sum([
+            pain_norm > 0.2, diarrhea_norm > 0.2, fatigue_norm > 0.2,
+            nausea_norm > 0.2, blood_int > 0, fever_int > 0
+        ])
+
+        # 2. History-derived features
+        disease_duration = demographics.get("disease_duration_years", 1.0)
+        previous_flares = history.get("previous_flares", 0)
+        last_flare_days = history.get("last_flare_days_ago", 365)
+
+        feature_dict['flare_frequency'] = previous_flares / max(disease_duration, 1)
+        feature_dict['recency_score'] = 1 / (1 + last_flare_days / 30)
+        feature_dict['disease_burden'] = disease_duration * 0.3 + previous_flares * 0.7
+        feature_dict['young_longduration'] = int(
+            demographics.get("age", 30) < 30 and disease_duration > 5
+        )
+
+        # 3. Interaction features
+        feature_dict['pain_diarrhea_combo'] = pain_norm * diarrhea_norm
+        feature_dict['blood_and_pain'] = int(blood_int == 1 and pain_norm >= 0.6)
+        feature_dict['vulnerable_state'] = int(
+            last_flare_days < 180 and feature_dict['total_symptom_score'] > 4.0
+        )
+
+        # Symptom severity category
+        if feature_dict['total_symptom_score'] < 3.0:
+            feature_dict['symptom_severity_category'] = 0  # Mild
+        elif feature_dict['total_symptom_score'] < 6.0:
+            feature_dict['symptom_severity_category'] = 1  # Moderate
+        else:
+            feature_dict['symptom_severity_category'] = 2  # Severe
+
+        feature_dict['gi_dominant'] = int(feature_dict['gi_score'] > feature_dict['systemic_score'] * 1.5)
+
+        # 4. Temporal features (use provided values or fallback to current)
+        if temporal_features:
+            feature_dict['pain_trend_7d'] = temporal_features.get('pain_trend_7d', pain_norm)
+            feature_dict['diarrhea_trend_7d'] = temporal_features.get('diarrhea_trend_7d', diarrhea_norm)
+            feature_dict['fatigue_trend_7d'] = temporal_features.get('fatigue_trend_7d', fatigue_norm)
+            feature_dict['symptom_volatility_7d'] = temporal_features.get('symptom_volatility_7d', 0.0)
+            feature_dict['symptom_change_rate'] = temporal_features.get('symptom_change_rate', 0.0)
+            feature_dict['days_since_low_symptoms'] = temporal_features.get('days_since_low_symptoms', 0)
+        else:
+            # Fallback: use current symptom values as trends
+            feature_dict['pain_trend_7d'] = pain_norm
+            feature_dict['diarrhea_trend_7d'] = diarrhea_norm
+            feature_dict['fatigue_trend_7d'] = fatigue_norm
+            feature_dict['symptom_volatility_7d'] = 0.0
+            feature_dict['symptom_change_rate'] = 0.0
+            feature_dict['days_since_low_symptoms'] = 0
+
+        # Add is_bad_day for consistency
+        feature_dict['is_bad_day'] = int(feature_dict['total_symptom_score'] > 3.0)
+
         return pd.DataFrame([feature_dict])
 
     def predict(
         self,
         symptoms: Dict,
         demographics: Dict,
-        history: Dict
+        history: Dict,
+        temporal_features: Dict = None
     ) -> Tuple[str, float, float, List[str], Dict[str, float], int, float]:
         """
         Make prediction using cluster-specific model for the patient's IBD type.
@@ -588,10 +672,11 @@ class ClusterStratifiedPredictor:
             symptoms: Symptom data
             demographics: Demographic data (must include ibd_type)
             history: Medical history data
+            temporal_features: Optional temporal features from user history
 
         Returns:
             Tuple of (risk_level, probability, confidence, contributors,
-                     all_probabilities, cluster_id, cluster_confidence)
+                     all_probabilities, cluster_id, cluster_confidence, model_source, ibd_type, montreal_code)
         """
         # Extract IBD type and Montreal classification
         ibd_type = demographics.get('ibd_type', 'crohn')
@@ -634,8 +719,8 @@ class ClusterStratifiedPredictor:
                 model = self.cluster_models[ibd_type][cluster_id]
                 model_source = "cluster_specific"
 
-            # 3. Extract features for prediction
-            features = self.extract_features(symptoms, demographics, history)
+            # 3. Extract features for prediction (including derived features)
+            features = self.extract_features(symptoms, demographics, history, temporal_features)
 
             # 4. Predict
             prediction = model.predict(features)[0]
