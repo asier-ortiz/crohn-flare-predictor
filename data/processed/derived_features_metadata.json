@@ -1,0 +1,58 @@
+{
+  "derived_features": [
+    "total_symptom_score",
+    "gi_score",
+    "systemic_score",
+    "red_flag_score",
+    "symptom_count",
+    "pain_trend_7d",
+    "diarrhea_trend_7d",
+    "fatigue_trend_7d",
+    "symptom_volatility_7d",
+    "symptom_change_rate",
+    "is_bad_day",
+    "days_since_low_symptoms",
+    "flare_frequency",
+    "recency_score",
+    "disease_burden",
+    "young_longduration",
+    "pain_diarrhea_combo",
+    "blood_and_pain",
+    "vulnerable_state",
+    "symptom_severity_category",
+    "gi_dominant"
+  ],
+  "categories": {
+    "symptom_aggregations": [
+      "total_symptom_score",
+      "gi_score",
+      "systemic_score",
+      "red_flag_score",
+      "symptom_count"
+    ],
+    "temporal_features": [
+      "pain_trend_7d",
+      "diarrhea_trend_7d",
+      "fatigue_trend_7d",
+      "symptom_volatility_7d",
+      "symptom_change_rate",
+      "days_since_low_symptoms"
+    ],
+    "history_features": [
+      "flare_frequency",
+      "recency_score",
+      "disease_burden",
+      "young_longduration"
+    ],
+    "interaction_features": [
+      "pain_diarrhea_combo",
+      "blood_and_pain",
+      "vulnerable_state",
+      "symptom_severity_category",
+      "gi_dominant"
+    ]
+  },
+  "n_derived_features": 21,
+  "crohn_records": 7618,
+  "cu_records": 6860
+}

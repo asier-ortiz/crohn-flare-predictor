@@ -1,0 +1,73 @@
+{
+  "ibd_type": "ulcerative_colitis",
+  "trained_date": "2025-11-21T08:55:55.987366",
+  "n_clusters": 2,
+  "features": [
+    "abdominal_pain",
+    "blood_in_stool",
+    "diarrhea",
+    "fatigue",
+    "fever",
+    "nausea",
+    "age",
+    "gender",
+    "disease_duration_years",
+    "previous_flares",
+    "last_flare_days_ago",
+    "month",
+    "day_of_week",
+    "total_symptom_score",
+    "gi_score",
+    "systemic_score",
+    "red_flag_score",
+    "symptom_count",
+    "pain_trend_7d",
+    "diarrhea_trend_7d",
+    "fatigue_trend_7d",
+    "symptom_volatility_7d",
+    "symptom_change_rate",
+    "is_bad_day",
+    "days_since_low_symptoms",
+    "flare_frequency",
+    "recency_score",
+    "disease_burden",
+    "young_longduration",
+    "pain_diarrhea_combo",
+    "blood_and_pain",
+    "vulnerable_state",
+    "symptom_severity_category",
+    "gi_dominant"
+  ],
+  "target": "risk_level",
+  "model_type": "RandomForestClassifier",
+  "clusters": {
+    "0": {
+      "model_file": "rf_severity_classifier_cluster_0.pkl",
+      "metrics": {
+        "accuracy": 0.9929453262786596,
+        "f1_macro": 0.9893898457728244,
+        "f1_low": 0.9959473150962512,
+        "f1_medium": 0.9722222222222222,
+        "f1_high": 1.0,
+        "recall_high": 1.0,
+        "precision_high": 1.0
+      },
+      "n_train": 4638,
+      "n_test": 1134
+    },
+    "1": {
+      "model_file": "rf_severity_classifier_cluster_1.pkl",
+      "metrics": {
+        "accuracy": 0.9204545454545454,
+        "f1_macro": 0.8714445271779597,
+        "f1_low": 0.9529411764705882,
+        "f1_medium": 0.9113924050632911,
+        "f1_high": 0.75,
+        "recall_high": 0.8181818181818182,
+        "precision_high": 0.6923076923076923
+      },
+      "n_train": 596,
+      "n_test": 176
+    }
+  }
+}

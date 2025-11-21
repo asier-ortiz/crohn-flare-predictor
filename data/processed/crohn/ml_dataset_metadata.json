@@ -1,0 +1,47 @@
+{
+  "ibd_type": "crohn",
+  "features": [
+    "abdominal_pain",
+    "blood_in_stool",
+    "diarrhea",
+    "fatigue",
+    "fever",
+    "nausea",
+    "age",
+    "gender",
+    "disease_duration_years",
+    "previous_flares",
+    "last_flare_days_ago",
+    "month",
+    "day_of_week"
+  ],
+  "symptom_features": [
+    "abdominal_pain",
+    "blood_in_stool",
+    "diarrhea",
+    "fatigue",
+    "fever",
+    "nausea"
+  ],
+  "demographic_features": [
+    "age",
+    "gender"
+  ],
+  "history_features": [
+    "disease_duration_years",
+    "previous_flares",
+    "last_flare_days_ago"
+  ],
+  "temporal_features": [
+    "month",
+    "day_of_week"
+  ],
+  "target": "risk_level",
+  "n_samples": 7618,
+  "n_users": 897,
+  "class_distribution": {
+    "low": 5732,
+    "medium": 1757,
+    "high": 129
+  }
+}

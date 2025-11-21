@@ -1,0 +1,14 @@
+{
+  "ibd_type": "crohn",
+  "n_clusters": 3,
+  "features": [
+    "abdominal_pain",
+    "blood_in_stool",
+    "diarrhea",
+    "fatigue",
+    "fever",
+    "nausea"
+  ],
+  "trained_date": "2025-11-21T08:51:11.164816",
+  "n_samples": 7027
+}
