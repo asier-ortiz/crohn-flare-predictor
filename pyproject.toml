@@ -46,9 +46,9 @@ Documentation = "https://github.com/asier-ortiz/crohn-flare-predictor#readme"
 Repository = "https://github.com/asier-ortiz/crohn-flare-predictor"
 Issues = "https://github.com/asier-ortiz/crohn-flare-predictor/issues"
 
-[project.scripts]
-# CLI commands
-crohn-predict = "src.model:main"
+# [project.scripts]
+# CLI commands removed - using API only
+# crohn-predict = "src.model:main"
 
 [dependency-groups]
 # Desarrollo local
@@ -100,18 +100,19 @@ extend-exclude = '''
 '''
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["scripts"]
 python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
-addopts = "-v --cov=src --cov-report=term-missing --cov-report=html"
+addopts = "-v --cov=api --cov-report=term-missing --cov-report=html"
 
 [tool.coverage.run]
-source = ["src"]
+source = ["api"]
 omit = [
     "*/tests/*",
     "*/test_*.py",
     "*/__init__.py",
+    "*/scripts/*",
 ]
 
 [tool.coverage.report]
@@ -125,7 +126,7 @@ exclude_lines = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src", "api"]
+packages = ["api"]
 
 [build-system]
 requires = ["hatchling"]
