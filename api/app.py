@@ -253,6 +253,67 @@ def get_recommendation(risk_level: str, symptoms) -> str:
     return recommendation
 
 
+def calculate_trends(daily_records: List) -> tuple:
+    """
+    Calculate temporal trends from daily symptom records.
+
+    Args:
+        daily_records: List of DailySymptomRecord objects
+
+    Returns:
+        Tuple of (SymptomTrends, AnalysisPeriod)
+    """
+    # Sort records by date
+    sorted_records = sorted(daily_records, key=lambda x: x.date)
+
+    # Calculate severity for each day
+    severities = [
+        calculate_symptom_severity(record.symptoms) for record in sorted_records
+    ]
+
+    # Overall trend: compare first half vs second half
+    midpoint = len(severities) // 2
+    early_avg = sum(severities[:midpoint]) / midpoint if midpoint > 0 else 0
+    late_avg = sum(severities[midpoint:]) / (len(severities) - midpoint) if len(severities) > midpoint else 0
+    severity_change = late_avg - early_avg
+
+    if severity_change > 0.1:
+        overall_trend = "worsening"
+    elif severity_change < -0.1:
+        overall_trend = "improving"
+    else:
+        overall_trend = "stable"
+
+    # Identify concerning patterns
+    concerning = []
+    if max(severities[-3:]) > 0.7:
+        concerning.append("High symptom severity in recent days")
+    if severity_change > 0.2:
+        concerning.append("Rapid symptom escalation detected")
+
+    # Blood in stool check
+    recent_blood = any(
+        record.symptoms.blood_in_stool
+        for record in sorted_records[-7:]
+    )
+    if recent_blood:
+        concerning.append("Blood in stool reported in last week")
+
+    trends = SymptomTrends(
+        overall_trend=overall_trend,
+        severity_change=round(severity_change, 2),
+        concerning_patterns=concerning,
+    )
+
+    analysis_period = AnalysisPeriod(
+        start_date=sorted_records[0].date,
+        end_date=sorted_records[-1].date,
+        days_analyzed=len(sorted_records),
+    )
+
+    return trends, analysis_period
+
+
 # API Endpoints
 
 @app.get("/", tags=["General"])
@@ -354,6 +415,8 @@ async def predict_flare(request: PredictionRequest):
     - Cluster assignment and IBD classification
     - Personalized recommendation in Spanish
     - Metadata (timestamp, model version)
+    - **Trends** (only with 7+ days): Temporal analysis including overall trend, severity change, and concerning patterns
+    - **Analysis Period** (only with 7+ days): Time period analyzed
 
     ## Example Use Case
 
@@ -440,11 +503,24 @@ async def predict_flare(request: PredictionRequest):
 
         recommendation = get_recommendation(risk_level, current_symptoms)
 
+        # Calculate trends if we have 7+ days of data
+        trends = None
+        analysis_period = None
+        if len(request.daily_records) >= 7:
+            try:
+                trends, analysis_period = calculate_trends(request.daily_records)
+                logger.info(f"Calculated trends: {trends.overall_trend}, severity_change: {trends.severity_change}")
+            except Exception as e:
+                logger.warning(f"Failed to calculate trends: {e}")
+                # Continue without trends
+
         return PredictionResponse(
             prediction=prediction,
             factors=factors,
             recommendation=recommendation,
-            metadata=metadata
+            metadata=metadata,
+            trends=trends,
+            analysis_period=analysis_period
         )
 
     except Exception as e:
@@ -459,16 +535,23 @@ async def predict_flare(request: PredictionRequest):
     response_model=TrendAnalysisResponse,
     status_code=status.HTTP_200_OK,
     tags=["Predictions"],
-    summary="Predict Risk Based on Symptom Trends",
+    summary="[DEPRECATED] Predict Risk Based on Symptom Trends",
     response_description="Trend-based prediction with risk assessment and recommendations",
+    deprecated=True
 )
 async def predict_trends(request: TrendAnalysisRequest):
     """
+    **DEPRECATED**: This endpoint has been merged into `/predict`.
+    Use `/predict` instead, which now includes trend analysis automatically when 7+ days of data are provided.
+
+    This endpoint is kept for backward compatibility but will be removed in a future version.
+
+    ---
+
     Predict flare risk based on temporal patterns in symptom data.
 
     This endpoint analyzes symptom trends over time to identify concerning patterns
-    and predict flare risk. Unlike the /predict endpoint which uses current symptoms,
-    this endpoint requires historical data (7+ days) to detect temporal trends.
+    and predict flare risk. It requires historical data (7+ days) to detect temporal trends.
 
     ## Requirements
 
