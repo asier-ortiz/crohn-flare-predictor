@@ -25,7 +25,13 @@ docs/figures/*.svg
 
 # Evaluation reports
 reports/
-*.json
+reports/**/*.json
+
+# Keep model metadata JSON files (these are small and important)
+!models/**/cluster_metadata.json
+!models/**/cluster_models_metadata.json
+!data/processed/derived_features_metadata.json
+!data/processed/*/ml_dataset_metadata.json
 
 # Processed data cache
 data/processed/cache/
