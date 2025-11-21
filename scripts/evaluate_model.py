@@ -17,61 +17,77 @@ BASE_URL = "http://localhost:8001"
 
 
 # Dataset de casos de prueba con etiquetas reales
-# Formato: (datos_entrada, riesgo_esperado)
+# Incluye casos de Crohn (L1-L4) y UC (E1-E3)
 TEST_CASES = [
-    # Casos de BAJO riesgo
+    # === CASOS DE BAJO RIESGO ===
+
+    # Crohn L1 (ileal) - Bajo riesgo
+    {
+        "input": {
+            "symptoms": {
+                "abdominal_pain": 2,
+                "diarrhea": 1,
+                "fatigue": 3,
+                "fever": False,
+                "weight_change": 0.0,
+                "blood_in_stool": False,
+                "nausea": 1
+            },
+            "demographics": {
+                "age": 28,
+                "gender": "M",
+                "disease_duration_years": 2,
+                "bmi": 24.0,
+                "ibd_type": "crohn",
+                "montreal_location": "L1"
+            },
+            "history": {
+                "previous_flares": 1,
+                "medications": ["mesalamine"],
+                "last_flare_days_ago": 365,
+                "surgery_history": False,
+                "smoking_status": "never"
+            }
+        },
+        "expected_risk": "low",
+        "case_description": "Crohn L1: Síntomas leves, bien controlado"
+    },
+
+    # UC E1 (proctitis) - Bajo riesgo
     {
         "input": {
             "symptoms": {
                 "abdominal_pain": 1,
-                "diarrhea": 1,
+                "diarrhea": 2,
                 "fatigue": 2,
                 "fever": False,
-                "weight_change": 0.0,
+                "weight_change": 0.5,
                 "blood_in_stool": False,
                 "nausea": 0
             },
             "demographics": {
                 "age": 25,
                 "gender": "F",
-                "disease_duration_years": 1
+                "disease_duration_years": 1,
+                "bmi": 22.0,
+                "ibd_type": "ulcerative_colitis",
+                "montreal_location": "E1"
             },
             "history": {
                 "previous_flares": 0,
                 "medications": ["mesalamine"],
-                "last_flare_days_ago": 500
+                "last_flare_days_ago": 500,
+                "surgery_history": False,
+                "smoking_status": "never"
             }
         },
         "expected_risk": "low",
-        "case_description": "Paciente joven, síntomas muy leves, sin historial"
-    },
-    {
-        "input": {
-            "symptoms": {
-                "abdominal_pain": 2,
-                "diarrhea": 2,
-                "fatigue": 3,
-                "fever": False,
-                "weight_change": 0.5,
-                "blood_in_stool": False,
-                "nausea": 1
-            },
-            "demographics": {
-                "age": 30,
-                "gender": "M",
-                "disease_duration_years": 3
-            },
-            "history": {
-                "previous_flares": 1,
-                "medications": ["azathioprine"],
-                "last_flare_days_ago": 400
-            }
-        },
-        "expected_risk": "low",
-        "case_description": "Síntomas leves controlados, último brote hace más de 1 año"
+        "case_description": "UC E1 (proctitis): Muy leve, sin brotes previos"
     },
 
-    # Casos de MEDIO riesgo
+    # === CASOS DE MEDIO RIESGO ===
+
+    # Crohn L2 (colonic) - Medio riesgo
     {
         "input": {
             "symptoms": {
@@ -86,17 +102,24 @@ TEST_CASES = [
             "demographics": {
                 "age": 35,
                 "gender": "F",
-                "disease_duration_years": 5
+                "disease_duration_years": 5,
+                "bmi": 21.5,
+                "ibd_type": "crohn",
+                "montreal_location": "L2"
             },
             "history": {
                 "previous_flares": 2,
                 "medications": ["mesalamine", "prednisone"],
-                "last_flare_days_ago": 180
+                "last_flare_days_ago": 180,
+                "surgery_history": False,
+                "smoking_status": "former"
             }
         },
         "expected_risk": "medium",
-        "case_description": "Síntomas moderados, algunos brotes previos"
+        "case_description": "Crohn L2: Síntomas moderados, algunos brotes previos"
     },
+
+    # UC E2 (left-sided) - Medio riesgo
     {
         "input": {
             "symptoms": {
@@ -105,25 +128,96 @@ TEST_CASES = [
                 "fatigue": 6,
                 "fever": False,
                 "weight_change": -2.0,
-                "blood_in_stool": False,
+                "blood_in_stool": True,
                 "nausea": 4
             },
             "demographics": {
                 "age": 40,
                 "gender": "M",
-                "disease_duration_years": 7
+                "disease_duration_years": 7,
+                "bmi": 23.0,
+                "ibd_type": "ulcerative_colitis",
+                "montreal_location": "E2"
             },
             "history": {
                 "previous_flares": 3,
-                "medications": ["infliximab"],
-                "last_flare_days_ago": 150
+                "medications": ["mesalamine", "azathioprine"],
+                "last_flare_days_ago": 150,
+                "surgery_history": False,
+                "smoking_status": "never"
             }
         },
         "expected_risk": "medium",
-        "case_description": "Síntomas moderados-altos, historial de múltiples brotes"
+        "case_description": "UC E2: Moderado, sangre ocasional, historial de brotes"
     },
 
-    # Casos de ALTO riesgo
+    # === CASOS DE ALTO RIESGO ===
+
+    # Crohn L3 (ileocolonic) - Alto riesgo
+    {
+        "input": {
+            "symptoms": {
+                "abdominal_pain": 7,
+                "diarrhea": 6,
+                "fatigue": 5,
+                "fever": False,
+                "weight_change": -2.5,
+                "blood_in_stool": True,
+                "nausea": 4
+            },
+            "demographics": {
+                "age": 32,
+                "gender": "F",
+                "disease_duration_years": 5.5,
+                "bmi": 22.5,
+                "ibd_type": "crohn",
+                "montreal_location": "L3"
+            },
+            "history": {
+                "previous_flares": 3,
+                "medications": ["infliximab", "azathioprine"],
+                "last_flare_days_ago": 120,
+                "surgery_history": False,
+                "smoking_status": "never"
+            }
+        },
+        "expected_risk": "high",
+        "case_description": "Crohn L3: Síntomas severos, sangre, brote reciente"
+    },
+
+    # UC E3 (extensive/pancolitis) - Alto riesgo
+    {
+        "input": {
+            "symptoms": {
+                "abdominal_pain": 8,
+                "diarrhea": 9,
+                "fatigue": 7,
+                "fever": True,
+                "weight_change": -4.5,
+                "blood_in_stool": True,
+                "nausea": 6
+            },
+            "demographics": {
+                "age": 45,
+                "gender": "M",
+                "disease_duration_years": 8,
+                "bmi": 21.0,
+                "ibd_type": "ulcerative_colitis",
+                "montreal_location": "E3"
+            },
+            "history": {
+                "previous_flares": 5,
+                "medications": ["mesalamine", "prednisone"],
+                "last_flare_days_ago": 45,
+                "surgery_history": False,
+                "smoking_status": "former"
+            }
+        },
+        "expected_risk": "high",
+        "case_description": "UC E3 (pancolitis): Muy severo, fiebre, pérdida peso"
+    },
+
+    # Crohn L4 (upper GI) - Alto riesgo
     {
         "input": {
             "symptoms": {
@@ -133,22 +227,29 @@ TEST_CASES = [
                 "fever": True,
                 "weight_change": -3.5,
                 "blood_in_stool": True,
-                "nausea": 6
+                "nausea": 7
             },
             "demographics": {
-                "age": 45,
-                "gender": "M",
-                "disease_duration_years": 10
+                "age": 50,
+                "gender": "F",
+                "disease_duration_years": 12,
+                "bmi": 19.5,
+                "ibd_type": "crohn",
+                "montreal_location": "L4"
             },
             "history": {
-                "previous_flares": 5,
-                "medications": ["infliximab", "azathioprine", "prednisone"],
-                "last_flare_days_ago": 45
+                "previous_flares": 6,
+                "medications": ["infliximab", "methotrexate"],
+                "last_flare_days_ago": 30,
+                "surgery_history": True,
+                "smoking_status": "never"
             }
         },
         "expected_risk": "high",
-        "case_description": "Síntomas severos, sangre en heces, fiebre, brote reciente"
+        "case_description": "Crohn L4 (upper GI): Severo, fiebre, cirugía previa"
     },
+
+    # Crohn L3 con historial extenso - Alto riesgo
     {
         "input": {
             "symptoms": {
@@ -158,47 +259,26 @@ TEST_CASES = [
                 "fever": True,
                 "weight_change": -5.0,
                 "blood_in_stool": True,
-                "nausea": 7
+                "nausea": 8
             },
             "demographics": {
-                "age": 50,
-                "gender": "F",
-                "disease_duration_years": 15
-            },
-            "history": {
-                "previous_flares": 8,
-                "medications": ["infliximab", "methotrexate"],
-                "last_flare_days_ago": 20,
-                "surgery_history": True
-            }
-        },
-        "expected_risk": "high",
-        "case_description": "Síntomas muy severos, fiebre, sangre, pérdida peso significativa"
-    },
-    {
-        "input": {
-            "symptoms": {
-                "abdominal_pain": 7,
-                "diarrhea": 8,
-                "fatigue": 6,
-                "fever": False,
-                "weight_change": -2.5,
-                "blood_in_stool": True,
-                "nausea": 5
-            },
-            "demographics": {
-                "age": 38,
+                "age": 55,
                 "gender": "M",
-                "disease_duration_years": 6
+                "disease_duration_years": 18,
+                "bmi": 18.5,
+                "ibd_type": "crohn",
+                "montreal_location": "L3"
             },
             "history": {
-                "previous_flares": 4,
-                "medications": ["adalimumab"],
-                "last_flare_days_ago": 60
+                "previous_flares": 10,
+                "medications": ["adalimumab", "methotrexate", "prednisone"],
+                "last_flare_days_ago": 15,
+                "surgery_history": True,
+                "smoking_status": "former"
             }
         },
         "expected_risk": "high",
-        "case_description": "Sangre en heces, síntomas severos, brote hace 2 meses"
+        "case_description": "Crohn L3: Muy severo, enfermedad larga, múltiples brotes"
     },
 ]
 

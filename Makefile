@@ -38,17 +38,17 @@ test: ## Ejecutar tests con pytest
 
 test-cov: ## Ejecutar tests con cobertura
 	@echo "Ejecutando tests con cobertura..."
-	$(PYTEST) --cov=src --cov-report=html --cov-report=term
+	$(PYTEST) --cov=api --cov-report=html --cov-report=term
 	@echo "📊 Reporte de cobertura generado en htmlcov/index.html"
 
 format: ## Formatear código con Black
 	@echo "Formateando código..."
-	$(BLACK) src/ api/ tests/ scripts/
+	$(BLACK) api/ scripts/
 	@echo "✅ Código formateado"
 
 lint: ## Verificar código con flake8
 	@echo "Verificando código..."
-	$(FLAKE8) src/ api/ tests/ scripts/
+	$(FLAKE8) api/ scripts/
 	@echo "✅ Verificación completada"
 
 check: format lint test ## Ejecutar formato, lint y tests
@@ -211,16 +211,12 @@ train-all: ## Entrenar TODOS los modelos (Crohn + CU)
 	@echo "💡 Siguiente paso:"
 	@echo "   make serve  (La API cargará automáticamente ambos tipos)"
 
-predict: ## Ejecutar predicción de ejemplo
-	@echo "🔮 Ejecutando predicción..."
-	$(PYTHON) -m src.model --predict
-
 setup-data: ## Crear estructura de directorios para datos
 	@echo "📁 Creando estructura de directorios..."
-	mkdir -p data/raw data/processed models logs reports/evaluations docs/figures
+	mkdir -p data/raw data/processed models/crohn models/cu reports/evaluations docs/figures
 	@echo "✅ Directorios creados:"
 	@echo "   - data/raw data/processed"
-	@echo "   - models logs"
+	@echo "   - models/crohn models/cu"
 	@echo "   - reports/evaluations"
 	@echo "   - docs/figures"
 	@echo "⚠️  Recuerda descargar el dataset de Kaggle en data/raw/"

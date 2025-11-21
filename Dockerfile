@@ -28,7 +28,6 @@ COPY --from=builder --chown=apiuser:apiuser /app/.venv /app/.venv
 
 # Copy application code
 COPY --chown=apiuser:apiuser ./api ./api
-COPY --chown=apiuser:apiuser ./src ./src
 
 # Copy models directory (will be empty initially, can be mounted as volume)
 COPY --chown=apiuser:apiuser ./models ./models
