@@ -73,12 +73,30 @@ class MedicalHistory(BaseModel):
     smoking_status: Optional[str] = Field(default="never", description="never/former/current")
 
 
+class TemporalFeatures(BaseModel):
+    """
+    Temporal features calculated from user's symptom history.
+    These are optional and calculated by the web app from the user's historical data.
+    If not provided, the API will use fallback values (current symptoms).
+    """
+    pain_trend_7d: Optional[float] = Field(default=None, ge=0, le=1, description="7-day pain trend (0-1 normalized)")
+    diarrhea_trend_7d: Optional[float] = Field(default=None, ge=0, le=1, description="7-day diarrhea trend (0-1 normalized)")
+    fatigue_trend_7d: Optional[float] = Field(default=None, ge=0, le=1, description="7-day fatigue trend (0-1 normalized)")
+    symptom_volatility_7d: Optional[float] = Field(default=None, ge=0, description="7-day symptom volatility (std deviation)")
+    symptom_change_rate: Optional[float] = Field(default=None, description="Change in symptoms vs 7 days ago")
+    days_since_low_symptoms: Optional[int] = Field(default=None, ge=0, description="Consecutive days with symptoms")
+
+
 # Prediction requests
 class PredictionRequest(BaseModel):
     """Single prediction request."""
     symptoms: Symptoms
     demographics: Demographics
     history: MedicalHistory
+    temporal_features: Optional[TemporalFeatures] = Field(
+        default=None,
+        description="Optional temporal features calculated from historical data. If omitted, API uses fallback values."
+    )
 
 
 class ClusterInfo(BaseModel):
