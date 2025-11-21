@@ -1,9 +1,8 @@
-.PHONY: help install sync clean test format lint serve notebook docker-build docker-run
+.PHONY: help install sync clean format lint serve notebook docker-build docker-run
 .PHONY: kill-serve run-notebook-02 run-notebook-03 pipeline reports show-latest-report
 
 # Variables
 PYTHON := uv run python
-PYTEST := uv run pytest
 BLACK := uv run black
 FLAKE8 := uv run flake8
 JUPYTER := uv run jupyter
@@ -25,27 +24,9 @@ sync: ## Sincronizar e instalar todas las dependencias
 clean: ## Limpiar archivos temporales y cache
 	@echo "Limpiando archivos temporales..."
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name ".coverage" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name "htmlcov" -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true
 	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
 	@echo "✅ Limpieza completada"
-
-test: ## Ejecutar tests de integración (requiere servidor activo en :8001)
-	@echo "🧪 Ejecutando tests de integración..."
-	@echo "⚠️  Asegúrate de que el servidor esté corriendo: make serve"
-	@echo ""
-	$(PYTEST) --no-cov scripts/test_api.py
-	@echo ""
-	@echo "✅ Tests de integración completados"
-
-test-unit: ## Ejecutar tests unitarios con cobertura
-	@echo "🧪 Ejecutando tests unitarios con cobertura..."
-	$(PYTEST) tests/ --cov=api --cov-report=html --cov-report=term
-	@echo "📊 Reporte de cobertura generado en htmlcov/index.html"
-
-test-integration: test ## Alias para 'test' (tests de integración)
 
 format: ## Formatear código con Black
 	@echo "Formateando código..."
@@ -57,15 +38,12 @@ lint: ## Verificar código con flake8
 	$(FLAKE8) api/ scripts/
 	@echo "✅ Verificación completada"
 
-check: format lint ## Ejecutar formato y lint (sin tests)
-
-check-all: format lint test ## Ejecutar formato, lint y tests (requiere servidor)
+check: format lint ## Ejecutar formato y lint
 
 serve: ## Iniciar servidor API en modo desarrollo
 	@echo "🚀 Iniciando servidor API..."
 	@echo "Documentación disponible en:"
 	@echo "  - Swagger UI: http://localhost:8001/docs"
-	@echo "  - ReDoc: http://localhost:8001/redoc"
 	$(UVICORN) api.app:app --reload --host 0.0.0.0 --port 8001
 
 kill-serve: ## Detener servidor API (libera puerto 8001)
@@ -75,14 +53,6 @@ kill-serve: ## Detener servidor API (libera puerto 8001)
 serve-prod: ## Iniciar servidor API en modo producción
 	@echo "🚀 Iniciando servidor API (producción)..."
 	$(UVICORN) api.app:app --host 0.0.0.0 --port 8001 --workers 4
-
-test-api: ## Probar endpoints de la API (requiere servidor activo)
-	@echo "🧪 Probando API..."
-	$(PYTHON) scripts/test_api.py
-
-test-api-curl: ## Probar API con curl (requiere jq instalado)
-	@echo "🧪 Probando API con curl..."
-	./scripts/test_api.sh
 
 evaluate: ## Evaluar precisión del modelo (requiere servidor activo)
 	@echo "🔬 Evaluando modelo..."
