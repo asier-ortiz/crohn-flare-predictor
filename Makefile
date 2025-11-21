@@ -42,7 +42,7 @@ test: ## Ejecutar tests de integración (requiere servidor activo en :8001)
 
 test-unit: ## Ejecutar tests unitarios con cobertura
 	@echo "🧪 Ejecutando tests unitarios con cobertura..."
-	$(PYTEST) --cov=api --cov-report=html --cov-report=term
+	$(PYTEST) tests/ --cov=api --cov-report=html --cov-report=term
 	@echo "📊 Reporte de cobertura generado en htmlcov/index.html"
 
 test-integration: test ## Alias para 'test' (tests de integración)
