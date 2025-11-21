@@ -150,17 +150,27 @@ def predict_flare_risk(request: PredictionRequest) -> tuple:
     Uses the trained RandomForest model if available, otherwise falls back
     to rule-based prediction.
     """
+    # Extract current symptoms (last day in daily_records)
+    sorted_records = sorted(request.daily_records, key=lambda x: x.date)
+    current_record = sorted_records[-1]
+    current_symptoms = current_record.symptoms
+
     if app_state.predictor:
         # Use ML model prediction
-        temporal_features_dict = None
-        if request.temporal_features:
-            temporal_features_dict = request.temporal_features.dict()
+        # Convert daily_records to dict format for predictor
+        daily_records_dict = [
+            {
+                'date': record.date.isoformat(),
+                'symptoms': record.symptoms.dict()
+            }
+            for record in sorted_records
+        ]
 
         result = app_state.predictor.predict(
-            symptoms=request.symptoms.dict(),
+            symptoms=current_symptoms.dict(),
             demographics=request.demographics.dict(),
             history=request.history.dict(),
-            temporal_features=temporal_features_dict
+            daily_records=daily_records_dict
         )
 
         # Cluster-stratified predictor returns 10 items
@@ -170,7 +180,7 @@ def predict_flare_risk(request: PredictionRequest) -> tuple:
         # Fallback: Simple rule-based prediction if model not loaded
         logger.warning("Predictor not available, using basic rule-based prediction")
 
-        severity = calculate_symptom_severity(request.symptoms)
+        severity = calculate_symptom_severity(current_symptoms)
 
         # Factor in medical history
         history_risk = 0.0
@@ -200,17 +210,17 @@ def predict_flare_risk(request: PredictionRequest) -> tuple:
 
         # Identify top contributors
         contributors = []
-        if request.symptoms.abdominal_pain >= 7:
+        if current_symptoms.abdominal_pain >= 7:
             contributors.append("abdominal_pain")
-        if request.symptoms.diarrhea >= 6:
+        if current_symptoms.diarrhea >= 6:
             contributors.append("diarrhea")
-        if request.symptoms.blood_in_stool:
+        if current_symptoms.blood_in_stool:
             contributors.append("blood_in_stool")
         if request.history.previous_flares > 3:
             contributors.append("previous_flares")
         if request.history.last_flare_days_ago < 90:
             contributors.append("recent_flare_history")
-        if request.symptoms.weight_change and request.symptoms.weight_change < -3:
+        if current_symptoms.weight_change and current_symptoms.weight_change < -3:
             contributors.append("weight_loss")
 
         if not contributors:
@@ -331,8 +341,8 @@ async def predict_flare(request: PredictionRequest):
 
     ## Input Requirements
 
-    - **Required**: symptoms, demographics, history
-    - **Optional but recommended**: temporal_features (requires 7+ days of historical data)
+    - **Required**: daily_records (minimum 1 day), demographics, history
+    - **Recommended**: 7-14 days of daily_records for temporal feature calculation and improved accuracy
 
     ## Response
 
@@ -348,9 +358,23 @@ async def predict_flare(request: PredictionRequest):
     ## Example Use Case
 
     ```python
-    # Patient with worsening symptoms
+    # Day 1: Patient with new symptoms (no history)
     response = requests.post("http://localhost:8001/predict", json={
-        "symptoms": {"abdominal_pain": 7, "diarrhea": 6, "fatigue": 5, "fever": False},
+        "daily_records": [
+            {"date": "2024-01-14", "symptoms": {"abdominal_pain": 7, "diarrhea": 6, "fatigue": 5, "fever": False}}
+        ],
+        "demographics": {"age": 32, "gender": "F", "disease_duration_years": 5, "ibd_type": "crohn", "montreal_location": "L3"},
+        "history": {"previous_flares": 3, "last_flare_days_ago": 120}
+    })
+
+    # Day 7+: Patient with symptom history (improved accuracy)
+    response = requests.post("http://localhost:8001/predict", json={
+        "daily_records": [
+            {"date": "2024-01-08", "symptoms": {"abdominal_pain": 5, "diarrhea": 4, "fatigue": 3, "fever": False}},
+            {"date": "2024-01-09", "symptoms": {"abdominal_pain": 6, "diarrhea": 5, "fatigue": 4, "fever": False}},
+            # ... more days ...
+            {"date": "2024-01-14", "symptoms": {"abdominal_pain": 7, "diarrhea": 6, "fatigue": 5, "fever": False}}
+        ],
         "demographics": {"age": 32, "gender": "F", "disease_duration_years": 5, "ibd_type": "crohn", "montreal_location": "L3"},
         "history": {"previous_flares": 3, "last_flare_days_ago": 120}
     })
@@ -402,15 +426,19 @@ async def predict_flare(request: PredictionRequest):
             cluster_confidence=round(cluster_conf, 2) if cluster_conf is not None else None
         )
 
+        # Extract current symptoms for factors and recommendation
+        sorted_records = sorted(request.daily_records, key=lambda x: x.date)
+        current_symptoms = sorted_records[-1].symptoms
+
         factors = ContributingFactors(
             top_contributors=contributors,
             symptom_severity_score=round(
-                calculate_symptom_severity(request.symptoms), 2
+                calculate_symptom_severity(current_symptoms), 2
             ),
             trend_indicator="stable",
         )
 
-        recommendation = get_recommendation(risk_level, request.symptoms)
+        recommendation = get_recommendation(risk_level, current_symptoms)
 
         return PredictionResponse(
             prediction=prediction,
@@ -513,21 +541,16 @@ async def predict_trends(request: TrendAnalysisRequest):
     if recent_blood:
         concerning.append("Blood in stool reported in last week")
 
-    # Risk assessment based on latest data
-    latest_record = sorted_records[-1]
-    latest_prediction_request = PredictionRequest(
-        symptoms=latest_record.symptoms,
-        demographics={"age": 0, "gender": "O", "disease_duration_years": 0},
-        history={
-            "previous_flares": 0,
-            "medications": [],
-            "last_flare_days_ago": 365,
-        },
+    # Risk assessment based on complete history (uses temporal features if 7+ days)
+    prediction_request = PredictionRequest(
+        daily_records=request.daily_records,
+        demographics=request.demographics,
+        history=request.history,
     )
 
     (risk_level, probability, confidence, _, _, cluster_id, cluster_conf,
      model_source, ibd_type, montreal_code) = predict_flare_risk(
-        latest_prediction_request
+        prediction_request
     )
 
     # Construct ClusterInfo object
