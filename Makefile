@@ -140,43 +140,51 @@ run-notebook-05: ## Ejecutar solo notebook 05 (Cluster-Stratified Training CU)
 	uv run jupyter nbconvert --to notebook --execute notebooks/05_cluster_stratified_training_cu.ipynb --inplace
 	@echo "✅ Modelos CU por cluster guardados en models/cu/"
 
-train-crohn: ## Entrenar pipeline completo para Crohn (notebooks 01 V2, 02 V2, 04)
+train-crohn: ## Entrenar pipeline completo para Crohn (notebooks 01, 02, 03, 04)
 	@echo "🔬 Pipeline completo: CROHN"
 	@echo "═══════════════════════════════════════"
-	@echo "📊 Paso 1/3: Exploratory Analysis + Clustering (Crohn)..."
-	uv run jupyter nbconvert --to notebook --execute notebooks/01_exploratory_analysis_v2.ipynb --inplace
+	@echo "📊 Paso 1/4: Exploratory Analysis + Clustering (Crohn)..."
+	uv run jupyter nbconvert --to notebook --execute notebooks/01_exploratory_analysis.ipynb --inplace
 	@echo "✅ Clusters Crohn generados"
-	@echo "📊 Paso 2/3: Feature Engineering (Crohn)..."
-	uv run jupyter nbconvert --to notebook --execute notebooks/02_feature_engineering_v2.ipynb --inplace
-	@echo "✅ Features Crohn generadas"
-	@echo "📊 Paso 3/3: Cluster-Stratified Training (Crohn)..."
+	@echo "📊 Paso 2/4: Feature Engineering (Crohn)..."
+	uv run jupyter nbconvert --to notebook --execute notebooks/02_feature_engineering.ipynb --inplace
+	@echo "✅ Features base generadas"
+	@echo "📊 Paso 3/4: Advanced Feature Engineering (34 features)..."
+	uv run jupyter nbconvert --to notebook --execute notebooks/03_advanced_feature_engineering.ipynb --inplace
+	@echo "✅ Features derivadas generadas (21 nuevas)"
+	@echo "📊 Paso 4/4: Cluster-Stratified Training (Crohn)..."
 	uv run jupyter nbconvert --to notebook --execute notebooks/04_cluster_stratified_training.ipynb --inplace
-	@echo "✅ Modelos Crohn entrenados"
+	@echo "✅ Modelos Crohn entrenados (34 features)"
 	@echo ""
 	@echo "📋 Modelos generados en models/crohn/:"
 	@echo "  - rf_severity_classifier_cluster_0.pkl"
 	@echo "  - rf_severity_classifier_cluster_1.pkl"
 	@echo "  - rf_severity_classifier_cluster_2.pkl"
+	@echo "  - rf_severity_classifier_global.pkl"
 	@echo "  - cluster_kmeans.pkl"
 	@echo "  - cluster_scaler.pkl"
 
-train-cu: ## Entrenar pipeline completo para CU (notebooks 01 V2, 02 V2, 05)
+train-cu: ## Entrenar pipeline completo para CU (notebooks 01, 02, 03, 05)
 	@echo "🔬 Pipeline completo: COLITIS ULCEROSA"
 	@echo "═══════════════════════════════════════"
-	@echo "📊 Paso 1/3: Exploratory Analysis + Clustering (CU)..."
-	uv run jupyter nbconvert --to notebook --execute notebooks/01_exploratory_analysis_v2.ipynb --inplace
+	@echo "📊 Paso 1/4: Exploratory Analysis + Clustering (CU)..."
+	uv run jupyter nbconvert --to notebook --execute notebooks/01_exploratory_analysis.ipynb --inplace
 	@echo "✅ Clusters CU generados"
-	@echo "📊 Paso 2/3: Feature Engineering (CU)..."
-	uv run jupyter nbconvert --to notebook --execute notebooks/02_feature_engineering_v2.ipynb --inplace
-	@echo "✅ Features CU generadas"
-	@echo "📊 Paso 3/3: Cluster-Stratified Training (CU)..."
+	@echo "📊 Paso 2/4: Feature Engineering (CU)..."
+	uv run jupyter nbconvert --to notebook --execute notebooks/02_feature_engineering.ipynb --inplace
+	@echo "✅ Features base generadas"
+	@echo "📊 Paso 3/4: Advanced Feature Engineering (34 features)..."
+	uv run jupyter nbconvert --to notebook --execute notebooks/03_advanced_feature_engineering.ipynb --inplace
+	@echo "✅ Features derivadas generadas (21 nuevas)"
+	@echo "📊 Paso 4/4: Cluster-Stratified Training (CU)..."
 	uv run jupyter nbconvert --to notebook --execute notebooks/05_cluster_stratified_training_cu.ipynb --inplace
-	@echo "✅ Modelos CU entrenados"
+	@echo "✅ Modelos CU entrenados (34 features)"
 	@echo ""
 	@echo "📋 Modelos generados en models/cu/:"
 	@echo "  - rf_severity_classifier_cluster_0.pkl"
 	@echo "  - rf_severity_classifier_cluster_1.pkl"
 	@echo "  - rf_severity_classifier_cluster_2.pkl"
+	@echo "  - rf_severity_classifier_global.pkl"
 	@echo "  - cluster_kmeans.pkl"
 	@echo "  - cluster_scaler.pkl"
 
