@@ -8,6 +8,10 @@ data/raw/*.zip
 data/raw/*.gz
 data/raw/*.json
 *.csv
+
+# Allow specific compressed dataset for analysis
+!data/raw/archive.zip
+
 !data/processed/sample_*.csv  # Allow small sample files
 
 # Model files (can be large)
@@ -286,7 +290,7 @@ __marimo__/
 
 # Compressed files (except in specific directories)
 *.tar.gz
-*.zip
+# *.zip  # Commented to allow specific dataset exceptions
 *.rar
 *.7z
 
