@@ -1,150 +1,407 @@
-# 📚 Documentación del Proyecto
+# 📚 Documentación - Crohn Flare Predictor ML API
 
-Documentación completa del servicio ML para predicción de brotes de IBD (Enfermedad Inflamatoria Intestinal).
+Documentación completa del microservicio ML para predicción de brotes de enfermedad inflamatoria intestinal.
 
-## 📖 Guías por Rol
+## 🎯 Propósito
 
-### 👨‍💻 Para Desarrolladores Web (Consumidores de la API)
+Este microservicio ML está diseñado para integrarse con una aplicación web de seguimiento de EII desarrollada por el equipo. El servicio funciona de manera independiente y stateless, recibiendo datos de síntomas y devolviendo predicciones de riesgo de brotes.
 
-Si necesitas integrar este servicio ML en tu aplicación:
+**Stack del proyecto completo:**
+- **ML API** (este repo): FastAPI + scikit-learn + Random Forest cluster-stratified
+- **Backend Web**: FastAPI + MySQL + JWT Auth
+- **Frontend**: Vue.js + HTML5 + CSS3
 
-1. **[Guía de Integración](INTEGRATION.md)** ⭐ Empieza aquí
-   - Cómo consumir la API desde tu aplicación web
-   - Ejemplos de código
-   - Mejores prácticas
+---
 
-2. **[Referencia de API](API_REFERENCE.md)**
-   - Documentación completa de endpoints
-   - Schemas de request/response
-   - Códigos de error
+## 📖 Guías Disponibles
 
-3. **[Esquema de Base de Datos](DATABASE_SCHEMA.md)** (Referencia)
-   - Schema recomendado para tu backend
-   - Cómo almacenar predicciones y síntomas
+### Para Desarrolladores del Equipo Web
 
-### 🔬 Para Desarrollo ML
+#### 1. [**Guía de la Aplicación Web**](WEB_APP_GUIDE.md) 🌟
 
-Si vas a trabajar en el modelo o entrenar nuevos modelos:
+**Para Cristina, Carlos y todo el equipo de desarrollo web**
 
-1. **[Guía de Desarrollo](DEVELOPMENT.md)** ⭐ Empieza aquí
-   - Setup del entorno local
-   - Flujo de trabajo con notebooks
-   - Re-entrenamiento de modelos
+Guía completa para desarrollar la aplicación web de seguimiento de EII:
+- 📋 Contexto del proyecto TFG
+- 🗄️ Esquema de base de datos MySQL (users, daily_symptoms, meals, exercise_log, flare_predictions)
+- 📱 Pantallas sugeridas (login, dashboard, registro diario, historial, patrones, perfil)
+- 🎨 Mockups y wireframes de UI
+- 🔄 Flujos de usuario completos
+- 🛠️ Estructura técnica (FastAPI + Vue + MySQL)
+- 🚀 Deployment con Docker Compose
 
-2. **[Implementación Cluster-Stratified](CLUSTER_STRATIFIED_IMPLEMENTATION.md)**
-   - Arquitectura de modelos cluster-stratified
-   - Mapeo Montreal Classification → Clusters
-   - Features derivadas (34 features totales)
+**Empieza por aquí si estás desarrollando la app web.**
 
-3. **[Arquitectura](architecture.md)**
-   - Decisiones de diseño
-   - ¿Por qué un servicio independiente?
-   - Stateless vs Stateful
+---
 
-### 🚀 Para DevOps/Despliegue
+#### 2. [**Guía de Integración**](INTEGRATION.md)
 
-1. **[Deployment](deployment.md)**
-   - Cómo desplegar en producción
-   - Docker y configuración
-   - Variables de entorno
+**Cómo integrar el ML API en tu backend FastAPI**
 
-## 🎯 ¿Qué es este proyecto?
+Tutorial paso a paso para conectar tu backend web con este microservicio ML:
+- 🏗️ Arquitectura de integración
+- 💻 Implementación del cliente HTTP (`ml_client.py`)
+- 📝 Ejemplos de endpoints (`/api/symptoms/daily`, `/api/dashboard`)
+- 🚨 Manejo de errores y graceful degradation
+- 🧪 Tests de integración
+- 🔐 Seguridad y rate limiting
+- ❓ FAQ y troubleshooting
 
-Este es un **servicio ML independiente** (microservicio) que expone una API REST para predicción de brotes de IBD basado en:
-- Síntomas diarios del paciente
-- Historial médico
-- Features derivadas (agregaciones, temporales, interacciones)
-- Modelos cluster-stratified por fenotipo de enfermedad
+**Lee esto cuando vayas a implementar las llamadas al ML API.**
 
-### ✅ Responsabilidades del Servicio
+---
 
-- Entrenar y mantener modelos ML
-- Exponer predicciones vía API REST
-- Clasificación automática por clusters (Montreal)
-- Análisis de tendencias temporales
-- Predicciones individuales y por lotes
+#### 3. [**Referencia de API**](API_REFERENCE.md)
 
-### ❌ NO es Responsabilidad del Servicio
+**Documentación completa de todos los endpoints**
 
-- Gestión de usuarios (login, registro)
-- Almacenamiento de datos de pacientes
-- Frontend/UI
-- Base de datos persistente
+Referencia técnica detallada:
+- 📍 Todos los endpoints disponibles:
+  - `GET /health` - Health check
+  - `POST /predict` - Predicción individual (⭐ más importante)
+  - `POST /predict/batch` - Predicciones por lotes
+  - `POST /analyze/trends` - Análisis temporal de síntomas
+  - `GET /model/info` - Información del modelo
+- 📊 Schemas completos de request/response
+- 💡 Ejemplos en Python, cURL y JavaScript
+- ⚠️ Códigos de error y manejo
+- 🧪 Scripts de testing
 
-## 📂 Estructura del Proyecto
+**Consúltala cuando necesites detalles específicos de un endpoint.**
 
-```
-crohn-flare-predictor/
-├── api/                    # API FastAPI
-│   ├── app.py             # Aplicación principal
-│   ├── ml_model.py        # Lógica de predicción cluster-stratified
-│   └── schemas.py         # Validación Pydantic
-├── notebooks/             # Análisis y entrenamiento
-│   ├── 01_exploratory_analysis.ipynb
-│   ├── 02_feature_engineering.ipynb
-│   ├── 03_advanced_feature_engineering.ipynb
-│   ├── 04_cluster_stratified_training.ipynb
-│   └── 05_cluster_stratified_training_cu.ipynb
-├── models/                # Modelos entrenados (.pkl)
-│   ├── crohn/
-│   └── cu/
-├── scripts/               # Scripts de utilidad
-│   ├── test_api.py
-│   └── evaluate_model.py
-├── docs/                  # Esta documentación
-└── tests/                 # Tests unitarios
-```
+---
 
 ## 🚀 Quick Start
 
-### Levantar el Servicio
+### Levantar el ML API
 
 ```bash
-# 1. Instalar dependencias
+# 1. Clonar el repositorio
+git clone https://github.com/tu-usuario/crohn-flare-predictor.git
+cd crohn-flare-predictor
+
+# 2. Instalar dependencias con uv
 uv sync
 
-# 2. Iniciar API
+# 3. Iniciar el servidor
+uv run uvicorn api.app:app --reload --host 0.0.0.0 --port 8001
+
+# O con Makefile
 make serve
 
-# 3. Verificar que funciona
+# 4. Verificar que funciona
 curl http://localhost:8001/health
+# {"status":"healthy","version":"1.0.0"}
 ```
 
-### Explorar la API
+### Probar el API
 
-Una vez corriendo, accede a:
+```bash
+# Ejemplo rápido de predicción
+curl -X POST http://localhost:8001/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "symptoms": {
+      "abdominal_pain": 7,
+      "blood_in_stool": false,
+      "diarrhea": 6,
+      "fatigue": 5,
+      "fever": false,
+      "nausea": 3
+    },
+    "demographics": {
+      "age": 32,
+      "gender": "F",
+      "disease_duration_years": 5,
+      "bmi": 22.5,
+      "ibd_type": "crohn",
+      "montreal_location": "L3"
+    },
+    "history": {
+      "previous_flares": 3,
+      "last_flare_days_ago": 120
+    }
+  }'
+```
+
+### Documentación Interactiva
+
+Con el servidor corriendo:
 - **Swagger UI**: http://localhost:8001/docs
 - **ReDoc**: http://localhost:8001/redoc
 
-## 🔗 Links Útiles
+---
 
-- **Swagger Docs**: http://localhost:8001/docs (cuando el servidor esté corriendo)
-- **Kaggle Dataset**: [Flaredown Autoimmune Symptom Tracker](https://www.kaggle.com/datasets/flaredown/flaredown-autoimmune-symptom-tracker)
+## 📂 Estructura del Repositorio
 
-## 📊 Características del Modelo
+```
+crohn-flare-predictor/
+├── api/                          # API REST (FastAPI)
+│   ├── app.py                   # Aplicación principal
+│   ├── ml_model.py              # Wrapper de modelos ML
+│   ├── schemas.py               # Pydantic schemas
+│   ├── config.py                # Configuración
+│   └── constants.py             # Constantes (descripciones de clusters)
+├── data/                        # Datos (gitignored)
+│   ├── raw/                     # Dataset Kaggle (export.csv)
+│   └── processed/               # Datos procesados
+│       ├── crohn/               # Datasets Crohn (L1-L4)
+│       └── cu/                  # Datasets Colitis Ulcerosa (E1-E3)
+├── models/                      # Modelos entrenados
+│   ├── crohn/                   # Modelos cluster-stratified Crohn
+│   │   ├── cluster_*.pkl        # 3 modelos (L1, L2/L3, L4)
+│   │   └── *_metadata.json      # Metadata de modelos
+│   └── cu/                      # Modelos cluster-stratified CU
+│       ├── cluster_*.pkl        # 3 modelos (E1, E2, E3)
+│       └── *_metadata.json      # Metadata de modelos
+├── notebooks/                   # Jupyter notebooks (desarrollo ML)
+│   ├── 01_exploratory_analysis.ipynb
+│   ├── 02_feature_engineering.ipynb
+│   ├── 03_advanced_feature_engineering.ipynb
+│   ├── 04_cluster_stratified_training.ipynb      # Crohn
+│   └── 05_cluster_stratified_training_cu.ipynb    # CU
+├── scripts/                     # Scripts auxiliares
+│   ├── test_api.py             # Test del API (Python)
+│   ├── test_api.sh             # Test del API (curl)
+│   ├── evaluate_model.py       # Evaluación de modelos
+│   └── cleanup_local.sh        # Limpieza de archivos generados
+├── docs/                        # Documentación (aquí estás)
+│   ├── README.md               # Este archivo
+│   ├── WEB_APP_GUIDE.md        # Guía de la app web (⭐ importante)
+│   ├── INTEGRATION.md          # Cómo integrar el ML API
+│   └── API_REFERENCE.md        # Referencia técnica de endpoints
+├── Dockerfile                   # Para despliegue en contenedor
+├── Makefile                     # Comandos útiles (make serve, etc.)
+├── pyproject.toml               # Configuración uv y dependencias
+└── README.md                    # README principal del proyecto
+```
 
-### Modelos Cluster-Stratified
+---
 
-- **34 features totales**: 13 base + 21 derivadas
-- **Modelos separados** por tipo de IBD (Crohn / UC)
-- **3 clusters** por fenotipo de enfermedad (basado en Montreal Classification)
-- **Global fallback** cuando cluster-specific no está disponible
-- **99.22% accuracy** en Crohn, **100% recall** para riesgo alto
+## 🎓 Para Estudiantes del TFG
 
-### Features Derivadas (21)
+### Flujo de Trabajo Sugerido
 
-1. **Agregaciones de Síntomas** (5): total_symptom_score, gi_score, systemic_score, red_flag_score, symptom_count
-2. **Temporales** (7): pain_trend_7d, diarrhea_trend_7d, fatigue_trend_7d, volatility, change_rate, days_since_low
-3. **Historial** (4): flare_frequency, recency_score, disease_burden, young_longduration
-4. **Interacciones** (5): pain_diarrhea_combo, blood_and_pain, vulnerable_state, severity_category, gi_dominant
+1. **Lee primero:** [WEB_APP_GUIDE.md](WEB_APP_GUIDE.md)
+   - Entiende el proyecto completo
+   - Revisa el esquema de BD
+   - Ve los mockups de pantallas
 
-## 📞 Soporte
+2. **Desarrolla la app web:**
+   - Backend FastAPI con MySQL
+   - Frontend Vue.js
+   - Sistema de autenticación JWT
 
-Para problemas o preguntas sobre:
-- **API ML**: Contacta al equipo de ML
-- **Integración/Backend Web**: Consulta la guía de integración
-- **Despliegue**: Ver deployment.md
+3. **Integra el ML API:** [INTEGRATION.md](INTEGRATION.md)
+   - Implementa `ml_client.py` en tu backend
+   - Añade predicciones en `/api/symptoms/daily`
+   - Muestra predicciones en el dashboard
 
-## 📄 Licencia
+4. **Consulta cuando sea necesario:** [API_REFERENCE.md](API_REFERENCE.md)
+   - Detalles técnicos de endpoints
+   - Schemas exactos
+   - Ejemplos de uso
 
-MIT License - Ver archivo LICENSE en la raíz del proyecto.
+### División del Trabajo
+
+**Sugerencia de roles** (ajustar según equipo):
+
+- **Backend Web (FastAPI + MySQL)**:
+  - Setup de BD (usuarios, síntomas, comidas, ejercicio)
+  - Autenticación JWT
+  - Endpoints CRUD
+  - Integración con ML API (`ml_client.py`)
+
+- **Frontend (Vue.js)**:
+  - Componentes reutilizables
+  - Pantallas (login, dashboard, formularios)
+  - Gráficas (Chart.js / ApexCharts)
+  - Comunicación con backend (axios)
+
+- **ML / DevOps** (este repositorio):
+  - Entrenar modelos (notebooks)
+  - Mantener ML API corriendo
+  - Docker / deployment
+  - Testing de integración
+
+---
+
+## 📊 Arquitectura del Sistema
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        USUARIO                              │
+│                    (Paciente con EII)                       │
+└────────────────────────┬────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   FRONTEND (Vue.js)                         │
+│  ┌──────────┬──────────┬──────────┬──────────┬──────────┐  │
+│  │  Login   │Dashboard │ Registro │Historial │ Perfil   │  │
+│  │          │ Gráficas │  Diario  │          │          │  │
+│  └──────────┴──────────┴──────────┴──────────┴──────────┘  │
+│                     http://localhost:5173                   │
+└────────────────────────┬────────────────────────────────────┘
+                         │ HTTP/JSON
+                         ▼
+┌─────────────────────────────────────────────────────────────┐
+│               BACKEND WEB (FastAPI)                         │
+│  ┌────────────────────────────────────────────────────┐     │
+│  │  • JWT Authentication                              │     │
+│  │  • Endpoints: /api/symptoms, /api/dashboard, etc. │     │
+│  │  • ml_client.py (cliente HTTP)                     │     │
+│  └────────────────────┬───────────────────────────────┘     │
+│                     http://localhost:8000                   │
+└────────┬───────────────┴─────────────────────┬──────────────┘
+         │                                     │
+         │ SQL                                 │ HTTP/JSON
+         ▼                                     ▼
+┌──────────────────┐              ┌──────────────────────────┐
+│  MySQL Database  │              │  ML API (Este repo)      │
+│                  │              │                          │
+│  • users         │              │  • POST /predict         │
+│  • daily_symptoms│              │  • GET /health           │
+│  • meals         │              │  • Modelos RF            │
+│  • exercise_log  │              │  • Cluster-stratified    │
+│  • predictions   │              │                          │
+│                  │              │  http://localhost:8001   │
+└──────────────────┘              └──────────────────────────┘
+```
+
+---
+
+## 🔬 Sobre el Modelo ML
+
+### Características Técnicas
+
+- **Tipo**: Random Forest Classifier (cluster-stratified)
+- **Features**: 34 features totales
+  - 13 base features (síntomas + demografía + historial)
+  - 21 derived features (agregaciones, tendencias, interacciones)
+- **Output**: Riesgo de brote (low/medium/high) con probabilidad y confianza
+- **Accuracy**: 99.22% (Crohn), 98.5% (CU)
+- **Recall para alto riesgo**: 100% (no se pierde ningún brote real)
+
+### Cluster Stratification
+
+El modelo usa modelos especializados según la clasificación de Montreal:
+
+**Crohn Disease:**
+- L1 (ileal) → Cluster 0
+- L2 (colónico) → Cluster 1
+- L3 (ileocolónico) → Cluster 1
+- L4 (gastrointestinal superior) → Cluster 2
+
+**Ulcerative Colitis:**
+- E1 (proctitis) → Cluster 0
+- E2 (colitis izquierda) → Cluster 1
+- E3 (colitis extensa/pancolitis) → Cluster 2
+
+Esto permite predicciones más precisas al adaptar el modelo a diferentes fenotipos de la enfermedad.
+
+---
+
+## 🧪 Testing
+
+### Tests del ML API
+
+```bash
+# Test completo con Python
+uv run python scripts/test_api.py
+
+# Test rápido con curl
+bash scripts/test_api.sh
+
+# Evaluación de modelos (8 casos diversos)
+uv run python scripts/evaluate_model.py
+```
+
+### Tests de Integración
+
+Ver ejemplos en [INTEGRATION.md](INTEGRATION.md) para:
+- Test de health check
+- Test de predicción
+- Test de degradación graceful (cuando ML API falla)
+
+---
+
+## 🐳 Deployment
+
+### Con Docker
+
+```bash
+# Build
+docker build -t crohn-ml-api .
+
+# Run
+docker run -p 8001:8001 crohn-ml-api
+```
+
+### Con Docker Compose (app completa)
+
+Ver ejemplo en [WEB_APP_GUIDE.md](WEB_APP_GUIDE.md) que incluye:
+- MySQL
+- Backend Web
+- ML API
+- Frontend
+
+---
+
+## 📝 Dataset
+
+**Fuente**: [Flaredown Autoimmune Symptom Tracker](https://www.kaggle.com/datasets/flaredown/flaredown-autoimmune-symptom-tracker)
+
+El dataset contiene seguimiento diario de síntomas de pacientes con EII y otras enfermedades autoinmunes. Para este proyecto se filtraron solo pacientes con Crohn y Colitis Ulcerosa.
+
+**⚠️ Importante:** El archivo `data/raw/export.csv` (~600MB) no está en git. Descárgalo desde Kaggle para entrenar modelos.
+
+---
+
+## ⚠️ Disclaimer
+
+Este software es solo para fines de investigación y educativos. **NO debe utilizarse como sustituto del consejo médico profesional, diagnóstico o tratamiento.** Siempre consulte con un profesional de la salud calificado.
+
+---
+
+## 🤝 Contribuir
+
+Este es un proyecto TFG académico. Para dudas o mejoras:
+- Abre un issue en el repositorio
+- Contacta directamente con el equipo
+
+---
+
+## 📧 Contacto
+
+- **Asier** (ML / ML API) - Este repositorio
+- **Cristina** (Web App / Frontend)
+- **Carlos** (Web App / Backend)
+
+---
+
+## 📚 Enlaces Útiles
+
+### Documentación
+
+- [Guía de la Aplicación Web](WEB_APP_GUIDE.md)
+- [Guía de Integración](INTEGRATION.md)
+- [Referencia de API](API_REFERENCE.md)
+
+### Recursos Técnicos
+
+- [FastAPI](https://fastapi.tiangolo.com/)
+- [Vue.js 3](https://vuejs.org/)
+- [scikit-learn](https://scikit-learn.org/)
+- [uv Package Manager](https://docs.astral.sh/uv/)
+- [Montreal Classification](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2807799/) (clasificación de EII)
+
+### Herramientas
+
+- **Swagger UI**: http://localhost:8001/docs
+- **ReDoc**: http://localhost:8001/redoc
+- **Scripts**: Ver `scripts/` directory
+
+---
+
+**¡Buena suerte con el TFG! 🎓🚀**
