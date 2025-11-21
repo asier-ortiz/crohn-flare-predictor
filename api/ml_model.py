@@ -656,7 +656,39 @@ class ClusterStratifiedPredictor:
         # Add is_bad_day for consistency
         feature_dict['is_bad_day'] = int(feature_dict['total_symptom_score'] > 3.0)
 
-        return pd.DataFrame([feature_dict])
+        # CRITICAL: Ensure features are in the exact order as training CSV
+        # Order: 13 base features + 21 derived features = 34 total
+        feature_order = [
+            # Base features (13) - from ml_dataset.csv
+            'abdominal_pain', 'blood_in_stool', 'diarrhea', 'fatigue', 'fever', 'nausea',  # symptoms (6)
+            'age', 'gender',  # demographics (2)
+            'disease_duration_years', 'previous_flares', 'last_flare_days_ago',  # history (3)
+            'month', 'day_of_week',  # temporal (2)
+
+            # Derived features (21) - from notebook 03
+            # Symptom aggregations (5)
+            'total_symptom_score', 'gi_score', 'systemic_score', 'red_flag_score', 'symptom_count',
+
+            # Temporal features (7)
+            'pain_trend_7d', 'diarrhea_trend_7d', 'fatigue_trend_7d',
+            'symptom_volatility_7d', 'symptom_change_rate', 'is_bad_day', 'days_since_low_symptoms',
+
+            # History features (4)
+            'flare_frequency', 'recency_score', 'disease_burden', 'young_longduration',
+
+            # Interaction features (5)
+            'pain_diarrhea_combo', 'blood_and_pain', 'vulnerable_state',
+            'symptom_severity_category', 'gi_dominant'
+        ]
+
+        # Create DataFrame with columns in correct order
+        df = pd.DataFrame([feature_dict])
+
+        # Reorder columns to match training data (only include columns that exist)
+        available_features = [col for col in feature_order if col in df.columns]
+        df = df[available_features]
+
+        return df
 
     def predict(
         self,
