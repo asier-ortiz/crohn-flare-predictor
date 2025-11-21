@@ -259,11 +259,31 @@ async def root():
     }
 
 
-@app.get("/health", response_model=HealthResponse, tags=["General"])
+@app.get(
+    "/health",
+    response_model=HealthResponse,
+    tags=["General"],
+    summary="Health Check",
+    response_description="Service health status",
+)
 async def health_check():
     """
-    Health check endpoint.
-    Returns healthy only if model is loaded and ready.
+    Health check endpoint for monitoring service availability.
+
+    Use this endpoint to verify that the API service is running and the
+    ML model is loaded and ready to accept prediction requests.
+
+    ## Status Codes
+
+    - **200 OK**: Service is healthy and model is loaded
+    - **503 Service Unavailable**: Service is running but model failed to load
+
+    ## Use Cases
+
+    - Container orchestration health checks (Kubernetes liveness/readiness probes)
+    - Load balancer health monitoring
+    - Service discovery and registration
+    - Automated monitoring and alerting
     """
     if not app_state.model_loaded:
         raise HTTPException(
@@ -282,13 +302,62 @@ async def health_check():
     response_model=PredictionResponse,
     status_code=status.HTTP_200_OK,
     tags=["Predictions"],
+    summary="Predict IBD Flare Risk",
+    response_description="Prediction with risk level, probability, contributing factors, and recommendations",
 )
 async def predict_flare(request: PredictionRequest):
     """
-    Predict flare risk based on patient symptoms, demographics, and history.
+    Predict the risk of an IBD flare for a single patient.
 
-    Returns probability of flare, risk level, and contributing factors.
-    If using cluster-stratified model, also returns patient's phenotype cluster.
+    This is the **primary endpoint** for the ML API. It analyzes current symptoms,
+    patient demographics, medical history, and optional temporal features to predict
+    the likelihood of an upcoming disease flare.
+
+    ## How It Works
+
+    1. **Feature Extraction**: Combines all input data into 34 engineered features
+    2. **Cluster Assignment**: Assigns patient to a phenotype cluster (0-2) based on disease characteristics
+    3. **Risk Prediction**: Uses a cluster-specific Random Forest model to predict flare risk
+    4. **Interpretation**: Identifies top contributing factors and generates personalized recommendations
+
+    ## Model Types
+
+    - **Cluster-Stratified** (default): Uses specialized models trained on similar patients
+    - **Global Fallback**: Used if cluster assignment fails
+    - **Rule-Based**: Simple heuristic fallback if no ML models are available
+
+    ## Risk Levels
+
+    - **Low**: Probability < 30% - Continue regular monitoring
+    - **Medium**: Probability 30-70% - Monitor closely, consider medical consultation
+    - **High**: Probability > 70% - Medical evaluation recommended
+
+    ## Input Requirements
+
+    - **Required**: symptoms, demographics, history
+    - **Optional but recommended**: temporal_features (requires 7+ days of historical data)
+
+    ## Response
+
+    Returns a complete prediction with:
+    - Risk level classification (low/medium/high)
+    - Probability scores for all risk levels
+    - Model confidence score
+    - Top 3 contributing factors
+    - Cluster assignment and IBD classification
+    - Personalized recommendation in Spanish
+    - Metadata (timestamp, model version)
+
+    ## Example Use Case
+
+    ```python
+    # Patient with worsening symptoms
+    response = requests.post("http://localhost:8001/predict", json={
+        "symptoms": {"abdominal_pain": 7, "diarrhea": 6, "fatigue": 5, "fever": False},
+        "demographics": {"age": 32, "gender": "F", "disease_duration_years": 5, "ibd_type": "crohn", "montreal_location": "L3"},
+        "history": {"previous_flares": 3, "last_flare_days_ago": 120}
+    })
+    ```
     """
     try:
         # Unpack result (now returns 10 items with enhanced metadata)
@@ -365,12 +434,39 @@ async def predict_flare(request: PredictionRequest):
     response_model=BatchPredictionResponse,
     status_code=status.HTTP_200_OK,
     tags=["Predictions"],
+    summary="Batch Predict for Multiple Patients",
+    response_description="Batch prediction results with success/failure counts",
 )
 async def batch_predict(request: BatchPredictionRequest):
     """
-    Perform batch predictions for multiple patients.
+    Perform batch predictions for multiple patients in a single request.
 
-    Accepts up to 100 patient records at once.
+    This endpoint is optimized for processing multiple patients efficiently,
+    such as when generating daily risk reports for all patients in a clinic.
+
+    ## Limits
+
+    - **Maximum**: 100 patients per request
+    - **Minimum**: 1 patient
+
+    ## Error Handling
+
+    Individual patient prediction failures do not abort the entire batch.
+    The response includes:
+    - Successfully processed predictions
+    - Count of failed predictions
+    - List of error messages for failed patients
+
+    ## Use Cases
+
+    - Daily batch risk assessment for clinic patients
+    - Retrospective analysis of patient cohorts
+    - Bulk data processing for research
+
+    ## Performance
+
+    - Processing time: ~50-100ms per patient
+    - Expected total time for 100 patients: 5-10 seconds
     """
     results = []
     errors = []
@@ -455,12 +551,46 @@ async def batch_predict(request: BatchPredictionRequest):
     response_model=TrendAnalysisResponse,
     status_code=status.HTTP_200_OK,
     tags=["Analysis"],
+    summary="Analyze Symptom Trends Over Time",
+    response_description="Trend analysis with risk assessment and recommendations",
 )
 async def analyze_trends(request: TrendAnalysisRequest):
     """
-    Analyze symptom trends over time.
+    Analyze temporal patterns in patient symptoms over a time period.
 
-    Requires at least 7 days of symptom data.
+    This endpoint provides longitudinal analysis of symptom data to identify
+    concerning patterns, trends, and changes that may indicate disease progression
+    or treatment response.
+
+    ## Requirements
+
+    - **Minimum**: 7 days of daily symptom records
+    - **Recommended**: 14-30 days for more reliable trend detection
+
+    ## Analysis Components
+
+    1. **Overall Trend**: Classifies symptom trajectory as improving, stable, or worsening
+    2. **Severity Change**: Quantifies the change in symptom severity over time
+    3. **Concerning Patterns**: Identifies specific warning signs:
+       - High severity in recent days
+       - Rapid symptom escalation
+       - Blood in stool in past week
+    4. **Risk Assessment**: Current flare risk based on most recent symptoms
+    5. **Recommendations**: Actionable guidance based on trend analysis
+
+    ## Use Cases
+
+    - Weekly symptom review for patients
+    - Identifying patients needing intervention
+    - Evaluating treatment effectiveness
+    - Patient education and engagement
+
+    ## Calculation Method
+
+    - Compares average severity: first half vs second half of time period
+    - Improvement: >10% decrease in severity
+    - Worsening: >10% increase in severity
+    - Stable: Within ±10%
     """
     if len(request.daily_records) < 7:
         raise HTTPException(
@@ -584,12 +714,36 @@ async def analyze_trends(request: TrendAnalysisRequest):
     response_model=ModelInfoResponse,
     status_code=status.HTTP_200_OK,
     tags=["Model"],
+    summary="Get Model Information",
+    response_description="Model metadata and performance metrics",
 )
 async def get_model_info():
     """
-    Get information about the current model.
+    Retrieve metadata and performance metrics for the current ML model.
 
-    Returns model version, training date, and performance metrics.
+    This endpoint provides transparency about the model being used for predictions,
+    including its training history, validation performance, and technical specifications.
+
+    ## Returned Information
+
+    - **Model Version**: Semantic version identifier
+    - **Training Date**: When the model was last trained
+    - **Performance Metrics**: Validation set performance
+      - Accuracy: Overall prediction accuracy
+      - Precision: Proportion of positive predictions that were correct
+      - Recall: Proportion of actual positives that were identified
+      - F1 Score: Harmonic mean of precision and recall
+      - ROC AUC: Area under the receiver operating characteristic curve
+    - **Features Count**: Number of input features used
+    - **Training Samples**: Size of training dataset
+    - **Model Type**: Algorithm used (e.g., RandomForest)
+
+    ## Use Cases
+
+    - Model versioning and tracking
+    - Performance monitoring and validation
+    - Regulatory compliance and audit trails
+    - Research documentation
     """
     return ModelInfoResponse(
         model_version="1.0.0",

@@ -235,26 +235,64 @@ Verifica el estado del servicio.
 POST /predict
 ```
 
-Realiza una predicción de brote basada en síntomas.
+Realiza una predicción de brote basada en síntomas, demografía e historia médica.
 
-**Request Body:**
+**Request Body Completo (con temporal_features opcional):**
 ```json
 {
   "symptoms": {
     "abdominal_pain": 7,
-    "diarrhea": 5,
-    "fatigue": 6,
+    "diarrhea": 6,
+    "fatigue": 5,
     "fever": false,
-    "weight_change": -2.5
+    "weight_change": -1.5,
+    "blood_in_stool": false,
+    "nausea": 3
   },
   "demographics": {
     "age": 32,
     "gender": "F",
-    "disease_duration_years": 5
+    "disease_duration_years": 5.0,
+    "bmi": 22.5,
+    "ibd_type": "crohn",
+    "montreal_location": "L3"
   },
   "history": {
     "previous_flares": 3,
-    "medications": ["mesalamine"],
+    "medications": ["mesalamine", "azathioprine"],
+    "last_flare_days_ago": 120,
+    "surgery_history": false,
+    "smoking_status": "never"
+  },
+  "temporal_features": {
+    "pain_trend_7d": 0.15,
+    "diarrhea_trend_7d": 0.10,
+    "fatigue_trend_7d": 0.05,
+    "symptom_volatility_7d": 1.2,
+    "symptom_change_rate": 0.08,
+    "days_since_low_symptoms": 5
+  }
+}
+```
+
+**Request Body Mínimo (sin temporal_features):**
+```json
+{
+  "symptoms": {
+    "abdominal_pain": 7,
+    "diarrhea": 6,
+    "fatigue": 5,
+    "fever": false
+  },
+  "demographics": {
+    "age": 32,
+    "gender": "F",
+    "disease_duration_years": 5.0,
+    "ibd_type": "crohn",
+    "montreal_location": "L3"
+  },
+  "history": {
+    "previous_flares": 3,
     "last_flare_days_ago": 120
   }
 }
@@ -264,20 +302,48 @@ Realiza una predicción de brote basada en síntomas.
 ```json
 {
   "prediction": {
-    "flare_risk": "high",
-    "probability": 0.78,
-    "confidence": 0.85
+    "flare_risk": "medium",
+    "probability": 0.65,
+    "confidence": 0.82,
+    "probabilities": {
+      "low": 0.15,
+      "medium": 0.65,
+      "high": 0.20
+    },
+    "cluster_info": {
+      "cluster_id": 1,
+      "cluster_confidence": 0.92,
+      "model_source": "cluster_specific",
+      "cluster_description": "Ileocolonic disease with moderate symptoms"
+    },
+    "ibd_info": {
+      "ibd_type": "crohn",
+      "montreal_classification": "L3"
+    }
   },
   "factors": {
     "top_contributors": [
       "abdominal_pain",
-      "symptom_trend",
+      "diarrhea",
       "previous_flares"
-    ]
+    ],
+    "symptom_severity_score": 0.65,
+    "trend_indicator": "stable"
   },
-  "recommendation": "Consulte con su médico. Se recomienda evaluación temprana."
+  "recommendation": "Monitoree sus síntomas de cerca. Considere contactar a su médico si empeoran.",
+  "metadata": {
+    "prediction_timestamp": "2024-01-15T10:30:00Z",
+    "model_version": "2.0.0",
+    "api_version": "1.0.0"
+  }
 }
 ```
+
+**Notas:**
+- `temporal_features` es **opcional pero recomendado** si tienes 7+ días de datos históricos
+- `ibd_type` puede ser `"crohn"` o `"ulcerative_colitis"`
+- `montreal_location`: L1-L4 para Crohn, E1-E3 para Colitis Ulcerosa
+- Los campos opcionales tienen valores por defecto
 
 ### Predicción por Lotes
 
@@ -285,7 +351,7 @@ Realiza una predicción de brote basada en síntomas.
 POST /predict/batch
 ```
 
-Realiza predicciones múltiples en una sola petición.
+Realiza predicciones múltiples en una sola petición (máximo 100 pacientes).
 
 **Request Body:**
 ```json
@@ -293,15 +359,78 @@ Realiza predicciones múltiples en una sola petición.
   "patients": [
     {
       "patient_id": "P001",
-      "symptoms": {...},
-      "demographics": {...}
+      "symptoms": {
+        "abdominal_pain": 7,
+        "diarrhea": 6,
+        "fatigue": 5,
+        "fever": false
+      },
+      "demographics": {
+        "age": 32,
+        "gender": "F",
+        "disease_duration_years": 5.0,
+        "ibd_type": "crohn",
+        "montreal_location": "L3"
+      },
+      "history": {
+        "previous_flares": 3,
+        "last_flare_days_ago": 120
+      }
     },
     {
       "patient_id": "P002",
-      "symptoms": {...},
-      "demographics": {...}
+      "symptoms": {
+        "abdominal_pain": 3,
+        "diarrhea": 2,
+        "fatigue": 4,
+        "fever": false
+      },
+      "demographics": {
+        "age": 45,
+        "gender": "M",
+        "disease_duration_years": 8.0,
+        "ibd_type": "ulcerative_colitis",
+        "montreal_location": "E2"
+      },
+      "history": {
+        "previous_flares": 5,
+        "last_flare_days_ago": 200
+      }
     }
   ]
+}
+```
+
+**Respuesta:**
+```json
+{
+  "results": [
+    {
+      "patient_id": "P001",
+      "prediction": {
+        "flare_risk": "medium",
+        "probability": 0.65,
+        "confidence": 0.82
+      },
+      "factors": {
+        "top_contributors": ["abdominal_pain", "diarrhea", "previous_flares"]
+      }
+    },
+    {
+      "patient_id": "P002",
+      "prediction": {
+        "flare_risk": "low",
+        "probability": 0.22,
+        "confidence": 0.88
+      },
+      "factors": {
+        "top_contributors": ["disease_duration_years", "last_flare_days_ago"]
+      }
+    }
+  ],
+  "processed_count": 2,
+  "failed_count": 0,
+  "errors": null
 }
 ```
 
@@ -311,7 +440,7 @@ Realiza predicciones múltiples en una sola petición.
 POST /analyze/trends
 ```
 
-Analiza tendencias temporales de síntomas.
+Analiza tendencias temporales de síntomas (mínimo 7 días de datos).
 
 **Request Body:**
 ```json
@@ -320,14 +449,99 @@ Analiza tendencias temporales de síntomas.
   "daily_records": [
     {
       "date": "2024-01-01",
-      "symptoms": {...}
+      "symptoms": {
+        "abdominal_pain": 5,
+        "diarrhea": 4,
+        "fatigue": 6,
+        "fever": false
+      }
     },
     {
       "date": "2024-01-02",
-      "symptoms": {...}
+      "symptoms": {
+        "abdominal_pain": 6,
+        "diarrhea": 5,
+        "fatigue": 7,
+        "fever": false
+      }
+    },
+    {
+      "date": "2024-01-03",
+      "symptoms": {
+        "abdominal_pain": 7,
+        "diarrhea": 6,
+        "fatigue": 7,
+        "fever": true
+      }
+    },
+    {
+      "date": "2024-01-04",
+      "symptoms": {
+        "abdominal_pain": 7,
+        "diarrhea": 7,
+        "fatigue": 8,
+        "fever": false
+      }
+    },
+    {
+      "date": "2024-01-05",
+      "symptoms": {
+        "abdominal_pain": 8,
+        "diarrhea": 7,
+        "fatigue": 8,
+        "fever": false
+      }
+    },
+    {
+      "date": "2024-01-06",
+      "symptoms": {
+        "abdominal_pain": 8,
+        "diarrhea": 8,
+        "fatigue": 9,
+        "fever": false
+      }
+    },
+    {
+      "date": "2024-01-07",
+      "symptoms": {
+        "abdominal_pain": 9,
+        "diarrhea": 8,
+        "fatigue": 9,
+        "fever": true
+      }
     }
   ],
   "window_days": 14
+}
+```
+
+**Respuesta:**
+```json
+{
+  "patient_id": "P001",
+  "analysis_period": {
+    "start_date": "2024-01-01",
+    "end_date": "2024-01-07",
+    "days_analyzed": 7
+  },
+  "trends": {
+    "overall_trend": "worsening",
+    "severity_change": 0.35,
+    "concerning_patterns": [
+      "High symptom severity in recent days",
+      "Rapid symptom escalation detected"
+    ]
+  },
+  "risk_assessment": {
+    "flare_risk": "high",
+    "probability": 0.82,
+    "confidence": 0.88
+  },
+  "recommendations": [
+    "Contact your healthcare provider",
+    "Review medication adherence",
+    "Schedule medical evaluation"
+  ]
 }
 ```
 
@@ -356,16 +570,71 @@ Retorna información sobre el modelo activo.
 
 ## 🧪 Testing
 
-Ejecutar los tests:
+El proyecto incluye dos tipos de tests:
+
+### Tests Unitarios
+
+Tests standalone que verifican la lógica de negocio sin requerir servidor activo:
 
 ```bash
-pytest
+# Ejecutar tests unitarios con cobertura
+make test-unit
+
+# O con pytest directamente
+pytest tests/ --cov=api --cov-report=html --cov-report=term
 ```
 
-Con cobertura:
+**Cobertura actual:**
+- `api/schemas.py`: 97% (15 tests - validación de schemas Pydantic)
+- `api/ml_model.py`: 22% (7 tests - extracción de features)
+- **Total general**: 31%
+
+**Tests incluidos:**
+- ✅ Validación de schemas (síntomas, demografía, historia médica)
+- ✅ Validación de Montreal Classification (L1-L4 para Crohn, E1-E3 para CU)
+- ✅ Extracción y generación de 34 features (13 base + 21 derivadas)
+- ✅ Valores por defecto y tipos de datos
+
+### Tests de Integración
+
+Tests que verifican los endpoints de la API (requieren servidor activo en puerto 8001):
 
 ```bash
-pytest --cov=api --cov-report=html --cov-report=term
+# 1. Iniciar el servidor en una terminal
+make serve
+
+# 2. En otra terminal, ejecutar tests de integración
+make test
+# o directamente: make test-integration
+```
+
+**Tests incluidos:**
+- ✅ Health check
+- ✅ Predicción individual
+- ✅ Predicción por lotes
+- ✅ Análisis de tendencias
+- ✅ Información del modelo
+
+### Ejecutar Todos los Tests
+
+Para ejecutar formato, lint y tests juntos:
+
+```bash
+# Solo formato y lint (sin tests)
+make check
+
+# Formato, lint y tests (requiere servidor activo)
+make check-all
+```
+
+### Ver Reporte de Cobertura
+
+Después de ejecutar `make test-unit`, abre el reporte HTML:
+
+```bash
+open htmlcov/index.html  # macOS
+xdg-open htmlcov/index.html  # Linux
+start htmlcov/index.html  # Windows
 ```
 
 ## 🔧 Desarrollo
