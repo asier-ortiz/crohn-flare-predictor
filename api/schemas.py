@@ -305,12 +305,42 @@ class PredictionMetadata(BaseModel):
     api_version: str = Field(default="1.0.0", description="API version")
 
 
+class AnalysisPeriod(BaseModel):
+    """Analysis time period."""
+    start_date: date
+    end_date: date
+    days_analyzed: int
+
+
+class SymptomTrends(BaseModel):
+    """Symptom trend indicators."""
+    overall_trend: str = Field(..., description="improving/stable/worsening")
+    severity_change: float = Field(..., description="Change in severity score")
+    concerning_patterns: List[str]
+    symptom_correlations: Optional[dict] = None
+
+
 class PredictionResponse(BaseModel):
-    """Prediction result."""
+    """
+    Prediction result with optional trend analysis.
+
+    When 7+ days of data are provided, includes temporal trend analysis.
+    With fewer days, only basic prediction is returned.
+    """
     prediction: "FlareRiskPrediction"
     factors: "ContributingFactors"
     recommendation: str
     metadata: PredictionMetadata
+
+    # Optional fields (only present when 7+ days of data)
+    trends: Optional["SymptomTrends"] = Field(
+        default=None,
+        description="Temporal trend analysis (only when 7+ days of data)"
+    )
+    analysis_period: Optional["AnalysisPeriod"] = Field(
+        default=None,
+        description="Time period analyzed for trends (only when 7+ days of data)"
+    )
 
 
 class FlareRiskPrediction(BaseModel):
@@ -366,27 +396,17 @@ class TrendAnalysisRequest(BaseModel):
 
 
 class TrendAnalysisResponse(BaseModel):
-    """Trend analysis response."""
+    """
+    DEPRECATED: Use /predict endpoint instead.
+
+    Trend analysis response. This schema is kept for backward compatibility
+    but the /predict/trends endpoint has been merged into /predict.
+    """
     patient_id: str
-    analysis_period: "AnalysisPeriod"
-    trends: "SymptomTrends"
+    analysis_period: AnalysisPeriod
+    trends: SymptomTrends
     risk_assessment: FlareRiskPrediction
     recommendations: List[str]
-
-
-class AnalysisPeriod(BaseModel):
-    """Analysis time period."""
-    start_date: date
-    end_date: date
-    days_analyzed: int
-
-
-class SymptomTrends(BaseModel):
-    """Symptom trend indicators."""
-    overall_trend: str = Field(..., description="improving/stable/worsening")
-    severity_change: float = Field(..., description="Change in severity score")
-    concerning_patterns: List[str]
-    symptom_correlations: Optional[dict] = None
 
 
 # Model information
