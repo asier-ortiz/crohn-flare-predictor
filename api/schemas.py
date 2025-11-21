@@ -315,35 +315,6 @@ class ContributingFactors(BaseModel):
     trend_indicator: Optional[str] = Field(default=None)
 
 
-# Batch prediction
-class PatientData(BaseModel):
-    """Patient data for batch prediction."""
-    patient_id: str
-    symptoms: Symptoms
-    demographics: Demographics
-    history: Optional[MedicalHistory] = None
-
-
-class BatchPredictionRequest(BaseModel):
-    """Batch prediction request."""
-    patients: List[PatientData] = Field(..., min_length=1, max_length=100)
-
-
-class PatientPredictionResult(BaseModel):
-    """Individual patient prediction result."""
-    patient_id: str
-    prediction: FlareRiskPrediction
-    factors: ContributingFactors
-
-
-class BatchPredictionResponse(BaseModel):
-    """Batch prediction response."""
-    results: List[PatientPredictionResult]
-    processed_count: int
-    failed_count: int = 0
-    errors: Optional[List[str]] = None
-
-
 # Trend analysis
 class DailySymptomRecord(BaseModel):
     """Daily symptom record."""
