@@ -5,7 +5,7 @@ Sistema de Machine Learning para predecir brotes de enfermedad inflamatoria inte
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Kaggle](https://img.shields.io/badge/Kaggle-Dataset-20BEFF?logo=kaggle&logoColor=white)](https://www.kaggle.com/datasets/amanik000/gastrointestinal-disease-dataset)
+[![Kaggle](https://img.shields.io/badge/Kaggle-Dataset-20BEFF?logo=kaggle&logoColor=white)](https://www.kaggle.com/datasets/flaredown/flaredown-autoimmune-symptom-tracker)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-1.3+-F7931E?logo=scikit-learn&logoColor=white)](https://scikit-learn.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 
@@ -30,24 +30,31 @@ Este servicio está diseñado para **integrarse con una aplicación web** (FastA
 
 ```
 crohn-flare-predictor/
-├── api/                      # API REST
-│   ├── app.py               # FastAPI application
-│   └── schemas.py           # Pydantic schemas
-├── data/                    # Datos (no versionados)
-│   ├── raw/                 # Datos sin procesar
-│   └── processed/           # Datos procesados
-├── models/                  # Modelos entrenados
-├── notebooks/               # Jupyter notebooks
+├── api/                          # API REST
+│   ├── app.py                   # FastAPI application
+│   ├── ml_model.py              # ML model wrapper
+│   └── schemas.py               # Pydantic schemas
+├── data/                        # Datos (no versionados)
+│   ├── raw/                     # Datos sin procesar (export.csv)
+│   └── processed/               # Datos procesados
+│       ├── crohn/               # Datasets Crohn
+│       └── cu/                  # Datasets Colitis Ulcerosa
+├── models/                      # Modelos entrenados
+│   ├── crohn/                   # Modelos Crohn (cluster-stratified)
+│   └── cu/                      # Modelos CU (cluster-stratified)
+├── notebooks/                   # Jupyter notebooks
 │   ├── 01_exploratory_analysis.ipynb
 │   ├── 02_feature_engineering.ipynb
-│   └── 03_model_training.ipynb
-├── src/                     # Código fuente
-│   ├── preprocessing.py     # Preprocesamiento de datos
-│   ├── feature_engineering.py
-│   ├── model.py            # Entrenamiento y predicción
-│   └── utils.py            # Utilidades
-├── scripts/                # Scripts auxiliares
-└── tests/                  # Tests unitarios
+│   ├── 03_advanced_feature_engineering.ipynb
+│   ├── 04_cluster_stratified_training.ipynb
+│   └── 05_cluster_stratified_training_cu.ipynb
+├── scripts/                     # Scripts auxiliares
+│   ├── test_api.py             # Test API con Python
+│   ├── test_api.sh             # Test API con curl
+│   ├── evaluate_model.py       # Evaluación de modelos
+│   └── cleanup_local.sh        # Limpieza de archivos generados
+├── docs/                        # Documentación
+└── reports/                     # Reportes de evaluación
 ```
 
 ## 📚 Documentación
@@ -113,8 +120,8 @@ cp .env.example .env
 ```
 
 4. **Descargar datos** (solo para entrenamiento)
-- Descargar el dataset desde [Kaggle](https://www.kaggle.com/datasets/amanik000/gastrointestinal-disease-dataset)
-- Colocar los archivos en `data/raw/`
+- Descargar el dataset desde [Kaggle: Flaredown Autoimmune Symptom Tracker](https://www.kaggle.com/datasets/flaredown/flaredown-autoimmune-symptom-tracker)
+- Guardar el archivo `export.csv` en `data/raw/`
 
 ### Instalación con Docker
 
@@ -166,7 +173,7 @@ uv run jupyter notebook
 uv run pytest
 
 # Formatear código
-uv run black src/ api/ tests/
+uv run black api/ scripts/
 
 # Levantar API REST
 uv run uvicorn api.app:app --reload
@@ -352,13 +359,13 @@ Retorna información sobre el modelo activo.
 Ejecutar los tests:
 
 ```bash
-pytest tests/
+pytest
 ```
 
 Con cobertura:
 
 ```bash
-pytest --cov=src tests/
+pytest --cov=api --cov-report=html --cov-report=term
 ```
 
 ## 🔧 Desarrollo
@@ -366,8 +373,8 @@ pytest --cov=src tests/
 ### Formato de Código
 
 ```bash
-black src/ api/ tests/
-flake8 src/ api/ tests/
+black api/ scripts/
+flake8 api/ scripts/
 ```
 
 ### Variables de Entorno
