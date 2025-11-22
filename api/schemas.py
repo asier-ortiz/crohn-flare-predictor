@@ -320,6 +320,7 @@ class SymptomTrends(BaseModel):
     severity_change: float = Field(..., description="Change in severity score")
     concerning_patterns: List[str]
     symptom_correlations: Optional[dict] = None
+    correlation_insights: Optional[List[str]] = Field(default=None, description="Human-readable interpretation of symptom correlations")
 
 
 class PredictionResponse(BaseModel):
