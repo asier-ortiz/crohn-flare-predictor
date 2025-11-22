@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta
 from typing import List, Optional
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -585,13 +585,19 @@ async def health_check():
 
 @app.post(
     "/predict",
-    response_model=PredictionResponse,
     status_code=status.HTTP_200_OK,
     tags=["Predicciones"],
     summary="Predecir Riesgo de Brote de EII",
     response_description="Predicción con nivel de riesgo, probabilidad, factores contribuyentes y recomendaciones",
 )
-async def predict_flare(request: PredictionRequest):
+async def predict_flare(
+    request: PredictionRequest,
+    format: str = Query(
+        "detailed",
+        description="Formato de respuesta: 'detailed' (completo) o 'simple' (simplificado para frontend)",
+        regex="^(detailed|simple)$"
+    )
+):
     """
     Predice el riesgo de un brote de Enfermedad Inflamatoria Intestinal (EII) para un paciente.
 
@@ -753,15 +759,58 @@ async def predict_flare(request: PredictionRequest):
                 logger.warning(f"Failed to calculate lifestyle insights: {e}")
                 # Continue without lifestyle insights
 
-        return PredictionResponse(
-            prediction=prediction,
-            factors=factors,
-            recommendation=recommendation,
-            metadata=metadata,
-            trends=trends,
-            analysis_period=analysis_period,
-            lifestyle_insights=lifestyle_insights
-        )
+        # Return simplified or detailed response based on format parameter
+        if format == "simple":
+            # Simplified response for frontend
+            risk_labels = {
+                "low": "bajo",
+                "medium": "moderado",
+                "high": "alto"
+            }
+
+            trend_labels = {
+                "worsening": "empeorando",
+                "improving": "mejorando",
+                "stable": "estable"
+            }
+
+            # Calculate period string
+            period_str = ""
+            if analysis_period:
+                period_str = f"{analysis_period.start_date.strftime('%d/%m/%Y')} - {analysis_period.end_date.strftime('%d/%m/%Y')}"
+
+            return {
+                "risk": {
+                    "level": prediction.flare_risk,
+                    "level_es": risk_labels.get(prediction.flare_risk, prediction.flare_risk),
+                    "score": round(prediction.probability * 10, 1),
+                    "message": f"Riesgo {risk_labels.get(prediction.flare_risk, prediction.flare_risk)} de brote en los próximos 7 días"
+                },
+                "recommendation": recommendation,
+                "trend": {
+                    "direction": trends.overall_trend if trends else "stable",
+                    "direction_es": trend_labels.get(trends.overall_trend if trends else "stable", "estable"),
+                    "description": f"Tus síntomas están {trend_labels.get(trends.overall_trend if trends else 'stable', 'estables')}"
+                } if trends else None,
+                "alerts": trends.concerning_patterns if trends and trends.concerning_patterns else [],
+                "lifestyle_tips": lifestyle_insights.recommendations if lifestyle_insights and lifestyle_insights.recommendations else [],
+                "summary": {
+                    "date": datetime.utcnow().strftime("%Y-%m-%d"),
+                    "days_analyzed": analysis_period.days_analyzed if analysis_period else 1,
+                    "period": period_str
+                }
+            }
+        else:
+            # Detailed response (original)
+            return PredictionResponse(
+                prediction=prediction,
+                factors=factors,
+                recommendation=recommendation,
+                metadata=metadata,
+                trends=trends,
+                analysis_period=analysis_period,
+                lifestyle_insights=lifestyle_insights
+            )
 
     except Exception as e:
         raise HTTPException(
