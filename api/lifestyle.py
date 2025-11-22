@@ -279,7 +279,13 @@ def calculate_food_correlations(
             day_categories = {}
 
         # Track binary presence of each food category
-        all_categories = set(FOOD_CATEGORIES[food][0] for food in FOOD_CATEGORIES.values() for cat in FOOD_CATEGORIES[food])
+        # Define all possible food categories
+        all_categories = {
+            'lacteos', 'gluten', 'verduras', 'procesado', 'cafe', 'alcohol',
+            'fibra_alta', 'fritos', 'picante', 'proteina', 'carbohidratos',
+            'azucar', 'sin_categorizar'
+        }
+
         for category in all_categories:
             if category not in food_presence:
                 food_presence[category] = []
