@@ -133,32 +133,97 @@ class MedicalHistory(BaseModel):
             return []
 
         # Spanish to English medication mapping
+        # Includes generic names (Spanish), trade names, and common variants
         medication_map = {
-            # Aminosalicilatos
+            # ========== AMINOSALICYLATES ==========
+            # Generic names (Spanish)
             "mesalazina": "mesalamine",
+            "mesalamina": "mesalamine",
             "sulfasalazina": "sulfasalazine",
             "balsalazida": "balsalazide",
-            # Corticoides
+            # Trade names
+            "asacol": "mesalamine",
+            "pentasa": "mesalamine",
+            "lialda": "mesalamine",
+            "apriso": "mesalamine",
+            "delzicol": "mesalamine",
+            "salofalk": "mesalamine",
+            "claversal": "mesalamine",
+            "azulfidine": "sulfasalazine",
+            "azulfidina": "sulfasalazine",
+            "colazal": "balsalazide",
+
+            # ========== CORTICOSTEROIDS ==========
+            # Generic names (Spanish)
             "prednisona": "prednisone",
             "prednisolona": "prednisolone",
             "budesonida": "budesonide",
             "hidrocortisona": "hydrocortisone",
-            # Inmunosupresores
+            "metilprednisolona": "methylprednisolone",
+            # Trade names
+            "entocort": "budesonide",
+            "uceris": "budesonide",
+            "cortiment": "budesonide",
+            "solu-medrol": "methylprednisolone",
+
+            # ========== IMMUNOSUPPRESSANTS ==========
+            # Generic names (Spanish)
             "azatioprina": "azathioprine",
             "mercaptopurina": "mercaptopurine",
+            "6-mercaptopurina": "mercaptopurine",
             "metotrexato": "methotrexate",
+            "metotrexate": "methotrexate",
             "ciclosporina": "cyclosporine",
             "tacrolimus": "tacrolimus",
-            # Biológicos
-            "infliximab": "infliximab",  # Same in both languages
+            "tacrolimús": "tacrolimus",
+            # Trade names
+            "imuran": "azathioprine",
+            "azasan": "azathioprine",
+            "purinethol": "mercaptopurine",
+            "purinetol": "mercaptopurine",
+            "rheumatrex": "methotrexate",
+            "trexall": "methotrexate",
+            "sandimmune": "cyclosporine",
+            "neoral": "cyclosporine",
+            "prograf": "tacrolimus",
+
+            # ========== BIOLOGICS (anti-TNF) ==========
+            # Generic names
+            "infliximab": "infliximab",
             "adalimumab": "adalimumab",
-            "vedolizumab": "vedolizumab",
-            "ustekinumab": "ustekinumab",
             "golimumab": "golimumab",
             "certolizumab": "certolizumab",
-            # Inhibidores JAK
+            # Trade names
+            "remicade": "infliximab",
+            "remsima": "infliximab",
+            "inflectra": "infliximab",
+            "humira": "adalimumab",
+            "simponi": "golimumab",
+            "cimzia": "certolizumab",
+
+            # ========== BIOLOGICS (anti-integrin) ==========
+            # Generic names
+            "vedolizumab": "vedolizumab",
+            "natalizumab": "natalizumab",
+            # Trade names
+            "entyvio": "vedolizumab",
+            "tysabri": "natalizumab",
+
+            # ========== BIOLOGICS (anti-IL) ==========
+            # Generic names
+            "ustekinumab": "ustekinumab",
+            "risankizumab": "risankizumab",
+            # Trade names
+            "stelara": "ustekinumab",
+            "skyrizi": "risankizumab",
+
+            # ========== JAK INHIBITORS ==========
+            # Generic names
             "tofacitinib": "tofacitinib",
             "upadacitinib": "upadacitinib",
+            # Trade names
+            "xeljanz": "tofacitinib",
+            "rinvoq": "upadacitinib",
         }
 
         normalized = []
