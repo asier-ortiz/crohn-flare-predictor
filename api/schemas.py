@@ -123,6 +123,7 @@ class MedicalHistory(BaseModel):
     last_flare_days_ago: int = Field(..., ge=0, description="Days elapsed since most recent flare", examples=[120])
     surgery_history: Optional[bool] = Field(default=False, description="Has had previous IBD-related surgery", examples=[False])
     smoking_status: Optional[str] = Field(default="never", description="Smoking status: never, former, or current", examples=["never"])
+    cumulative_flare_days: Optional[int] = Field(default=0, ge=0, description="Total days in flare state over disease history", examples=[45])
 
     model_config = {
         "json_schema_extra": {
@@ -132,7 +133,8 @@ class MedicalHistory(BaseModel):
                     "medications": ["mesalamine", "azathioprine"],
                     "last_flare_days_ago": 120,
                     "surgery_history": False,
-                    "smoking_status": "never"
+                    "smoking_status": "never",
+                    "cumulative_flare_days": 45
                 }
             ]
         }
