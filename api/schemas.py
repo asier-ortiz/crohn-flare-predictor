@@ -119,18 +119,64 @@ class MedicalHistory(BaseModel):
     disease activity strongly predicts future risk.
     """
     previous_flares: int = Field(..., ge=0, description="Total number of documented previous flares", examples=[3])
-    medications: Optional[List[str]] = Field(default=[], description="Current medications (e.g., mesalamine, prednisone)", examples=[["mesalamine", "azathioprine"]])
+    medications: Optional[List[str]] = Field(default=[], description="Current medications (accepts Spanish or English names)", examples=[["mesalamine", "azathioprine"]])
     last_flare_days_ago: int = Field(..., ge=0, description="Days elapsed since most recent flare", examples=[120])
     surgery_history: Optional[bool] = Field(default=False, description="Has had previous IBD-related surgery", examples=[False])
     smoking_status: Optional[str] = Field(default="never", description="Smoking status: never, former, or current", examples=["never"])
     cumulative_flare_days: Optional[int] = Field(default=0, ge=0, description="Total days in flare state over disease history", examples=[45])
+
+    @field_validator("medications", mode="before")
+    @classmethod
+    def normalize_medication_names(cls, v):
+        """Normalize medication names from Spanish to English."""
+        if not v:
+            return []
+
+        # Spanish to English medication mapping
+        medication_map = {
+            # Aminosalicilatos
+            "mesalazina": "mesalamine",
+            "sulfasalazina": "sulfasalazine",
+            "balsalazida": "balsalazide",
+            # Corticoides
+            "prednisona": "prednisone",
+            "prednisolona": "prednisolone",
+            "budesonida": "budesonide",
+            "hidrocortisona": "hydrocortisone",
+            # Inmunosupresores
+            "azatioprina": "azathioprine",
+            "mercaptopurina": "mercaptopurine",
+            "metotrexato": "methotrexate",
+            "ciclosporina": "cyclosporine",
+            "tacrolimus": "tacrolimus",
+            # Biológicos
+            "infliximab": "infliximab",  # Same in both languages
+            "adalimumab": "adalimumab",
+            "vedolizumab": "vedolizumab",
+            "ustekinumab": "ustekinumab",
+            "golimumab": "golimumab",
+            "certolizumab": "certolizumab",
+            # Inhibidores JAK
+            "tofacitinib": "tofacitinib",
+            "upadacitinib": "upadacitinib",
+        }
+
+        normalized = []
+        for med in v:
+            # Convert to lowercase for matching
+            med_lower = med.lower().strip()
+            # Use mapped name if available, otherwise keep original
+            normalized_name = medication_map.get(med_lower, med_lower)
+            normalized.append(normalized_name)
+
+        return normalized
 
     model_config = {
         "json_schema_extra": {
             "examples": [
                 {
                     "previous_flares": 3,
-                    "medications": ["mesalamine", "azathioprine"],
+                    "medications": ["mesalazina", "azatioprina"],
                     "last_flare_days_ago": 120,
                     "surgery_history": False,
                     "smoking_status": "never",
@@ -211,21 +257,45 @@ class PredictionRequest(BaseModel):
                 {
                     "daily_records": [
                         {
-                            "date": "2024-01-08",
+                            "date": "2025-11-15",
                             "symptoms": {
-                                "abdominal_pain": 5,
-                                "diarrhea": 4,
-                                "fatigue": 3,
+                                "abdominal_pain": 3,
+                                "diarrhea": 2,
+                                "fatigue": 2,
                                 "fever": False,
                                 "weight_change": 0.0,
+                                "blood_in_stool": False,
+                                "nausea": 1
+                            }
+                        },
+                        {
+                            "date": "2025-11-16",
+                            "symptoms": {
+                                "abdominal_pain": 4,
+                                "diarrhea": 3,
+                                "fatigue": 3,
+                                "fever": False,
+                                "weight_change": -0.2,
                                 "blood_in_stool": False,
                                 "nausea": 2
                             }
                         },
                         {
-                            "date": "2024-01-09",
+                            "date": "2025-11-17",
                             "symptoms": {
-                                "abdominal_pain": 6,
+                                "abdominal_pain": 4,
+                                "diarrhea": 4,
+                                "fatigue": 3,
+                                "fever": False,
+                                "weight_change": -0.3,
+                                "blood_in_stool": False,
+                                "nausea": 2
+                            }
+                        },
+                        {
+                            "date": "2025-11-18",
+                            "symptoms": {
+                                "abdominal_pain": 5,
                                 "diarrhea": 5,
                                 "fatigue": 4,
                                 "fever": False,
@@ -235,15 +305,39 @@ class PredictionRequest(BaseModel):
                             }
                         },
                         {
-                            "date": "2024-01-14",
+                            "date": "2025-11-19",
                             "symptoms": {
-                                "abdominal_pain": 7,
+                                "abdominal_pain": 6,
+                                "diarrhea": 5,
+                                "fatigue": 5,
+                                "fever": False,
+                                "weight_change": -0.4,
+                                "blood_in_stool": False,
+                                "nausea": 3
+                            }
+                        },
+                        {
+                            "date": "2025-11-20",
+                            "symptoms": {
+                                "abdominal_pain": 6,
                                 "diarrhea": 6,
                                 "fatigue": 5,
                                 "fever": False,
-                                "weight_change": -1.5,
-                                "blood_in_stool": False,
-                                "nausea": 3
+                                "weight_change": -0.6,
+                                "blood_in_stool": True,
+                                "nausea": 4
+                            }
+                        },
+                        {
+                            "date": "2025-11-21",
+                            "symptoms": {
+                                "abdominal_pain": 7,
+                                "diarrhea": 6,
+                                "fatigue": 6,
+                                "fever": False,
+                                "weight_change": -0.8,
+                                "blood_in_stool": True,
+                                "nausea": 4
                             }
                         }
                     ],
@@ -257,10 +351,11 @@ class PredictionRequest(BaseModel):
                     },
                     "history": {
                         "previous_flares": 3,
-                        "medications": ["mesalamine", "azathioprine"],
+                        "medications": ["mesalazina", "azatioprina"],
                         "last_flare_days_ago": 120,
                         "surgery_history": False,
-                        "smoking_status": "never"
+                        "smoking_status": "never",
+                        "cumulative_flare_days": 45
                     }
                 }
             ]
