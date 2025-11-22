@@ -24,8 +24,6 @@ from api.schemas import (
     ClusterInfo,
     IBDInfo,
     PredictionMetadata,
-    TrendAnalysisRequest,
-    TrendAnalysisResponse,
     AnalysisPeriod,
     SymptomTrends,
     ModelInfoResponse,
@@ -369,77 +367,84 @@ async def health_check():
     "/predict",
     response_model=PredictionResponse,
     status_code=status.HTTP_200_OK,
-    tags=["Predictions"],
-    summary="Predict IBD Flare Risk",
-    response_description="Prediction with risk level, probability, contributing factors, and recommendations",
+    tags=["Predicciones"],
+    summary="Predecir Riesgo de Brote de EII",
+    response_description="Predicción con nivel de riesgo, probabilidad, factores contribuyentes y recomendaciones",
 )
 async def predict_flare(request: PredictionRequest):
     """
-    Predict the risk of an IBD flare for a single patient.
+    Predice el riesgo de un brote de Enfermedad Inflamatoria Intestinal (EII) para un paciente.
 
-    This is the **primary endpoint** for the ML API. It analyzes current symptoms,
-    patient demographics, medical history, and optional temporal features to predict
-    the likelihood of an upcoming disease flare.
+    Este es el **endpoint principal** de la API. Analiza síntomas actuales, demografía del paciente,
+    historia médica y medicación para predecir el riesgo de brote en los próximos **7 días** (T+7).
 
-    ## How It Works
+    ## Cómo Funciona
 
-    1. **Feature Extraction**: Combines all input data into 34 engineered features
-    2. **Cluster Assignment**: Assigns patient to a phenotype cluster (0-2) based on disease characteristics
-    3. **Risk Prediction**: Uses a cluster-specific Random Forest model to predict flare risk
-    4. **Interpretation**: Identifies top contributing factors and generates personalized recommendations
+    1. **Extracción de Features**: Combina todos los datos en 27 features incluyendo medicación y tendencias
+    2. **Modelo Temporal**: Usa RandomForest entrenado con split temporal (sin data leakage)
+    3. **Predicción T+7**: Predice riesgo 7 días en el futuro
+    4. **Interpretación**: Identifica factores contribuyentes y genera recomendaciones personalizadas
 
-    ## Model Types
+    ## Tipos de Modelos
 
-    - **Cluster-Stratified** (default): Uses specialized models trained on similar patients
-    - **Global Fallback**: Used if cluster assignment fails
-    - **Rule-Based**: Simple heuristic fallback if no ML models are available
+    - **Temporal** (por defecto): Modelos específicos para Crohn (92.6% acc) y CU (88.4% acc)
+    - **Cluster-Stratified** (fallback): Usa modelos por clusters de fenotipos
+    - **Global** (último fallback): Modelo global si los anteriores no están disponibles
 
-    ## Risk Levels
+    ## Niveles de Riesgo
 
-    - **Low**: Probability < 30% - Continue regular monitoring
-    - **Medium**: Probability 30-70% - Monitor closely, consider medical consultation
-    - **High**: Probability > 70% - Medical evaluation recommended
+    - **low**: Probabilidad < 30% - Continuar con seguimiento regular
+    - **medium**: Probabilidad 30-70% - Monitorear de cerca, considerar consulta médica
+    - **high**: Probabilidad > 70% - Evaluación médica recomendada
 
-    ## Input Requirements
+    ## Requisitos de Entrada
 
-    - **Required**: daily_records (minimum 1 day), demographics, history
-    - **Recommended**: 7-14 days of daily_records for temporal feature calculation and improved accuracy
+    - **Obligatorio**: daily_records (mínimo 1 día), demographics (con ibd_type), history (con medications)
+    - **Recomendado**: 7-14 días de daily_records para cálculo preciso de tendencias temporales
 
-    ## Response
+    ## Features Utilizadas (27 total)
 
-    Returns a complete prediction with:
-    - Risk level classification (low/medium/high)
-    - Probability scores for all risk levels
-    - Model confidence score
-    - Top 3 contributing factors
-    - Cluster assignment and IBD classification
-    - Personalized recommendation in Spanish
-    - Metadata (timestamp, model version)
-    - **Trends** (only with 7+ days): Temporal analysis including overall trend, severity change, and concerning patterns
-    - **Analysis Period** (only with 7+ days): Time period analyzed
+    - **Medicación (5)**: biologics, immunosuppressants, corticosteroids, aminosalicylates, total_meds
+    - **Tendencias síntomas (10)**: media y volatilidad 7 días para dolor, diarrea, fatiga, sangre
+    - **Historia (6)**: duración enfermedad, días acumulados en brote, frecuencia de brotes
+    - **Demografía (6)**: edad, género, mes, día de semana, fin de semana
 
-    ## Example Use Case
+    ## Respuesta
+
+    Retorna una predicción completa con:
+    - Nivel de riesgo (low/medium/high)
+    - Probabilidades para todos los niveles
+    - Confianza del modelo
+    - Top 3 factores contribuyentes
+    - Tipo de EII y clasificación
+    - Recomendación personalizada en español
+    - Metadata (timestamp, versión del modelo)
+    - **Trends** (solo con 7+ días): Análisis temporal con tendencia y patrones preocupantes
+
+    ## Ejemplo de Uso
 
     ```python
-    # Day 1: Patient with new symptoms (no history)
+    # Con 7+ días de historial (óptimo)
     response = requests.post("http://localhost:8001/predict", json={
         "daily_records": [
-            {"date": "2024-01-14", "symptoms": {"abdominal_pain": 7, "diarrhea": 6, "fatigue": 5, "fever": False}}
+            {"date": "2024-11-15", "symptoms": {"abdominal_pain": 5, "diarrhea": 4, "fatigue": 3, "fever": False}},
+            {"date": "2024-11-16", "symptoms": {"abdominal_pain": 6, "diarrhea": 5, "fatigue": 4, "fever": False}},
+            # ... 5 días más ...
+            {"date": "2024-11-22", "symptoms": {"abdominal_pain": 7, "diarrhea": 6, "fatigue": 5, "fever": False}}
         ],
-        "demographics": {"age": 32, "gender": "F", "disease_duration_years": 5, "ibd_type": "crohn", "montreal_location": "L3"},
-        "history": {"previous_flares": 3, "last_flare_days_ago": 120}
-    })
-
-    # Day 7+: Patient with symptom history (improved accuracy)
-    response = requests.post("http://localhost:8001/predict", json={
-        "daily_records": [
-            {"date": "2024-01-08", "symptoms": {"abdominal_pain": 5, "diarrhea": 4, "fatigue": 3, "fever": False}},
-            {"date": "2024-01-09", "symptoms": {"abdominal_pain": 6, "diarrhea": 5, "fatigue": 4, "fever": False}},
-            # ... more days ...
-            {"date": "2024-01-14", "symptoms": {"abdominal_pain": 7, "diarrhea": 6, "fatigue": 5, "fever": False}}
-        ],
-        "demographics": {"age": 32, "gender": "F", "disease_duration_years": 5, "ibd_type": "crohn", "montreal_location": "L3"},
-        "history": {"previous_flares": 3, "last_flare_days_ago": 120}
+        "demographics": {
+            "age": 32,
+            "gender": "F",
+            "disease_duration_years": 5.0,
+            "ibd_type": "crohn",
+            "montreal_location": "L3"
+        },
+        "history": {
+            "previous_flares": 3,
+            "medications": ["mesalamine", "azathioprine"],
+            "last_flare_days_ago": 120,
+            "cumulative_flare_days": 45
+        }
     })
     ```
     """
@@ -528,171 +533,6 @@ async def predict_flare(request: PredictionRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error during prediction: {str(e)}",
         )
-
-
-@app.post(
-    "/predict/trends",
-    response_model=TrendAnalysisResponse,
-    status_code=status.HTTP_200_OK,
-    tags=["Predictions"],
-    summary="[DEPRECATED] Predict Risk Based on Symptom Trends",
-    response_description="Trend-based prediction with risk assessment and recommendations",
-    deprecated=True
-)
-async def predict_trends(request: TrendAnalysisRequest):
-    """
-    **DEPRECATED**: This endpoint has been merged into `/predict`.
-    Use `/predict` instead, which now includes trend analysis automatically when 7+ days of data are provided.
-
-    This endpoint is kept for backward compatibility but will be removed in a future version.
-
-    ---
-
-    Predict flare risk based on temporal patterns in symptom data.
-
-    This endpoint analyzes symptom trends over time to identify concerning patterns
-    and predict flare risk. It requires historical data (7+ days) to detect temporal trends.
-
-    ## Requirements
-
-    - **Minimum**: 7 days of daily symptom records
-    - **Recommended**: 14-30 days for more reliable trend detection
-
-    ## Analysis Components
-
-    1. **Overall Trend**: Classifies symptom trajectory as improving, stable, or worsening
-    2. **Severity Change**: Quantifies the change in symptom severity over time
-    3. **Concerning Patterns**: Identifies specific warning signs:
-       - High severity in recent days
-       - Rapid symptom escalation
-       - Blood in stool in past week
-    4. **Risk Assessment**: Current flare risk based on most recent symptoms
-    5. **Recommendations**: Actionable guidance based on trend analysis
-
-    ## Use Cases
-
-    - Weekly symptom review for patients
-    - Identifying patients needing intervention
-    - Evaluating treatment effectiveness
-    - Patient education and engagement
-
-    ## Calculation Method
-
-    - Compares average severity: first half vs second half of time period
-    - Improvement: >10% decrease in severity
-    - Worsening: >10% increase in severity
-    - Stable: Within ±10%
-    """
-    if len(request.daily_records) < 7:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="At least 7 days of data required for trend analysis",
-        )
-
-    # Sort records by date
-    sorted_records = sorted(request.daily_records, key=lambda x: x.date)
-
-    # Calculate trend
-    severities = [
-        calculate_symptom_severity(record.symptoms) for record in sorted_records
-    ]
-
-    # Simple trend calculation
-    early_avg = sum(severities[:len(severities)//2]) / (len(severities)//2)
-    late_avg = sum(severities[len(severities)//2:]) / (len(severities) - len(severities)//2)
-    severity_change = late_avg - early_avg
-
-    if severity_change > 0.1:
-        overall_trend = "worsening"
-    elif severity_change < -0.1:
-        overall_trend = "improving"
-    else:
-        overall_trend = "stable"
-
-    # Identify concerning patterns
-    concerning = []
-    if max(severities[-3:]) > 0.7:
-        concerning.append("High symptom severity in recent days")
-    if severity_change > 0.2:
-        concerning.append("Rapid symptom escalation detected")
-
-    # Blood in stool check
-    recent_blood = any(
-        record.symptoms.blood_in_stool
-        for record in sorted_records[-7:]
-    )
-    if recent_blood:
-        concerning.append("Blood in stool reported in last week")
-
-    # Risk assessment based on complete history (uses temporal features if 7+ days)
-    prediction_request = PredictionRequest(
-        daily_records=request.daily_records,
-        demographics=request.demographics,
-        history=request.history,
-    )
-
-    (risk_level, probability, confidence, _, _, cluster_id, cluster_conf,
-     model_source, ibd_type, montreal_code) = predict_flare_risk(
-        prediction_request
-    )
-
-    # Construct ClusterInfo object
-    cluster_info = None
-    if cluster_id is not None:
-        if ibd_type == "crohn":
-            cluster_description = CROHN_CLUSTER_DESCRIPTIONS.get(cluster_id)
-        else:
-            cluster_description = UC_CLUSTER_DESCRIPTIONS.get(cluster_id)
-
-        cluster_info = ClusterInfo(
-            cluster_id=cluster_id,
-            cluster_confidence=round(cluster_conf, 2),
-            model_source=model_source,
-            cluster_description=cluster_description
-        )
-
-    # Construct IBDInfo object
-    ibd_info = IBDInfo(
-        ibd_type=ibd_type,
-        montreal_classification=montreal_code
-    )
-
-    risk_assessment = FlareRiskPrediction(
-        flare_risk=risk_level,
-        probability=round(probability, 2),
-        confidence=round(confidence, 2),
-        cluster_info=cluster_info,
-        ibd_info=ibd_info,
-        # Legacy fields for backwards compatibility
-        cluster_id=cluster_id,
-        cluster_confidence=round(cluster_conf, 2) if cluster_conf is not None else None
-    )
-
-    # Recommendations
-    recommendations = []
-    if overall_trend == "worsening":
-        recommendations.append("Contact your healthcare provider")
-        recommendations.append("Review medication adherence")
-    if concerning:
-        recommendations.append("Schedule medical evaluation")
-    else:
-        recommendations.append("Continue current management plan")
-
-    return TrendAnalysisResponse(
-        patient_id=request.patient_id,
-        analysis_period=AnalysisPeriod(
-            start_date=sorted_records[0].date,
-            end_date=sorted_records[-1].date,
-            days_analyzed=len(sorted_records),
-        ),
-        trends=SymptomTrends(
-            overall_trend=overall_trend,
-            severity_change=round(severity_change, 2),
-            concerning_patterns=concerning,
-        ),
-        risk_assessment=risk_assessment,
-        recommendations=recommendations,
-    )
 
 
 @app.get(
