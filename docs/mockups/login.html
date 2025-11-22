@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Crohn Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex items-center justify-center p-4">
+    <!-- Container Principal -->
+    <div class="max-w-md w-full">
+        <!-- Logo -->
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center mb-4">
+                <i class="fas fa-heartbeat text-blue-500 text-4xl mr-2"></i>
+                <span class="text-3xl font-bold text-gray-900">Crohn Tracker</span>
+            </div>
+            <p class="text-gray-600">Predice brotes con inteligencia artificial</p>
+        </div>
+
+        <!-- Card de Login/Registro -->
+        <div class="bg-white rounded-2xl shadow-xl p-8">
+            <!-- Tabs -->
+            <div class="flex mb-8 bg-gray-100 rounded-lg p-1">
+                <button id="loginTab" class="flex-1 py-2 px-4 rounded-md font-semibold transition bg-white text-blue-600 shadow-sm">
+                    Iniciar Sesión
+                </button>
+                <button id="registerTab" class="flex-1 py-2 px-4 rounded-md font-semibold transition text-gray-600 hover:text-gray-900">
+                    Registrarse
+                </button>
+            </div>
+
+            <!-- Formulario de Login -->
+            <div id="loginForm">
+                <form class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Email
+                        </label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fas fa-envelope text-gray-400"></i>
+                            </div>
+                            <input type="email" placeholder="tu@email.com" class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Contraseña
+                        </label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fas fa-lock text-gray-400"></i>
+                            </div>
+                            <input type="password" placeholder="••••••••" class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center">
+                            <input type="checkbox" class="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500">
+                            <span class="ml-2 text-sm text-gray-600">Recordarme</span>
+                        </label>
+                        <a href="#" class="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                            ¿Olvidaste tu contraseña?
+                        </a>
+                    </div>
+
+                    <button type="submit" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg transition shadow-md">
+                        <i class="fas fa-sign-in-alt mr-2"></i>
+                        Iniciar Sesión
+                    </button>
+                </form>
+
+                <div class="mt-6">
+                    <div class="relative">
+                        <div class="absolute inset-0 flex items-center">
+                            <div class="w-full border-t border-gray-300"></div>
+                        </div>
+                        <div class="relative flex justify-center text-sm">
+                            <span class="px-2 bg-white text-gray-500">O continuar con</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 grid grid-cols-2 gap-3">
+                        <button class="flex items-center justify-center py-3 px-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                            <i class="fab fa-google text-red-500 mr-2"></i>
+                            <span class="text-sm font-medium text-gray-700">Google</span>
+                        </button>
+                        <button class="flex items-center justify-center py-3 px-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                            <i class="fab fa-github text-gray-800 mr-2"></i>
+                            <span class="text-sm font-medium text-gray-700">GitHub</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formulario de Registro (oculto por defecto) -->
+            <div id="registerForm" class="hidden">
+                <form class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Nombre Completo
+                        </label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fas fa-user text-gray-400"></i>
+                            </div>
+                            <input type="text" placeholder="María García" class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Email
+                        </label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fas fa-envelope text-gray-400"></i>
+                            </div>
+                            <input type="email" placeholder="tu@email.com" class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Contraseña
+                        </label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fas fa-lock text-gray-400"></i>
+                            </div>
+                            <input type="password" placeholder="Mínimo 8 caracteres" class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div class="mt-2 flex gap-1">
+                            <div class="h-1 flex-1 bg-gray-200 rounded"></div>
+                            <div class="h-1 flex-1 bg-gray-200 rounded"></div>
+                            <div class="h-1 flex-1 bg-gray-200 rounded"></div>
+                            <div class="h-1 flex-1 bg-gray-200 rounded"></div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">Fortaleza de la contraseña: Débil</p>
+                    </div>
+
+                    <div>
+                        <label class="flex items-start">
+                            <input type="checkbox" class="w-4 h-4 mt-1 text-blue-600 rounded focus:ring-2 focus:ring-blue-500">
+                            <span class="ml-2 text-sm text-gray-600">
+                                Acepto los <a href="#" class="text-blue-600 hover:text-blue-700 font-medium">Términos y Condiciones</a> y la <a href="#" class="text-blue-600 hover:text-blue-700 font-medium">Política de Privacidad</a>
+                            </span>
+                        </label>
+                    </div>
+
+                    <button type="submit" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg transition shadow-md">
+                        <i class="fas fa-user-plus mr-2"></i>
+                        Crear Cuenta
+                    </button>
+                </form>
+
+                <div class="mt-6">
+                    <div class="relative">
+                        <div class="absolute inset-0 flex items-center">
+                            <div class="w-full border-t border-gray-300"></div>
+                        </div>
+                        <div class="relative flex justify-center text-sm">
+                            <span class="px-2 bg-white text-gray-500">O registrarse con</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 grid grid-cols-2 gap-3">
+                        <button class="flex items-center justify-center py-3 px-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                            <i class="fab fa-google text-red-500 mr-2"></i>
+                            <span class="text-sm font-medium text-gray-700">Google</span>
+                        </button>
+                        <button class="flex items-center justify-center py-3 px-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                            <i class="fab fa-github text-gray-800 mr-2"></i>
+                            <span class="text-sm font-medium text-gray-700">GitHub</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Link de vuelta -->
+        <div class="text-center mt-6">
+            <a href="landing.html" class="text-gray-600 hover:text-gray-900 text-sm">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Volver a la página principal
+            </a>
+        </div>
+
+        <!-- Nota de seguridad -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
+            <div class="flex items-start">
+                <i class="fas fa-shield-alt text-blue-500 mt-1 mr-3"></i>
+                <div>
+                    <h3 class="text-sm font-semibold text-blue-900 mb-1">Tus datos están seguros</h3>
+                    <p class="text-xs text-blue-700">
+                        Utilizamos encriptación de grado médico y cumplimos con las normativas de privacidad de datos de salud.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Toggle entre Login y Registro
+        const loginTab = document.getElementById('loginTab');
+        const registerTab = document.getElementById('registerTab');
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+
+        loginTab.addEventListener('click', () => {
+            loginTab.classList.add('bg-white', 'text-blue-600', 'shadow-sm');
+            loginTab.classList.remove('text-gray-600');
+            registerTab.classList.remove('bg-white', 'text-blue-600', 'shadow-sm');
+            registerTab.classList.add('text-gray-600');
+            loginForm.classList.remove('hidden');
+            registerForm.classList.add('hidden');
+        });
+
+        registerTab.addEventListener('click', () => {
+            registerTab.classList.add('bg-white', 'text-blue-600', 'shadow-sm');
+            registerTab.classList.remove('text-gray-600');
+            loginTab.classList.remove('bg-white', 'text-blue-600', 'shadow-sm');
+            loginTab.classList.add('text-gray-600');
+            registerForm.classList.remove('hidden');
+            loginForm.classList.add('hidden');
+        });
+    </script>
+</body>
+</html>

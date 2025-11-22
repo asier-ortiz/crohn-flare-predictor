@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Crohn Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-50">
+    <!-- Navbar -->
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 flex items-center">
+                        <i class="fas fa-heartbeat text-blue-500 text-2xl mr-2"></i>
+                        <span class="text-xl font-bold text-gray-900">Crohn Tracker</span>
+                    </div>
+                    <div class="hidden sm:ml-8 sm:flex sm:space-x-8">
+                        <a href="dashboard.html" class="border-b-2 border-blue-500 text-gray-900 inline-flex items-center px-1 pt-1 text-sm font-medium">
+                            Dashboard
+                        </a>
+                        <a href="diario.html" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            Diario
+                        </a>
+                        <a href="reportes.html" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            Reportes
+                        </a>
+                        <a href="cuenta.html" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            Cuenta
+                        </a>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <span class="text-sm text-gray-500 mr-4">María García</span>
+                    <button class="text-gray-400 hover:text-gray-500">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="mb-6">
+            <h1 class="text-3xl font-bold text-gray-900">Dashboard</h1>
+            <p class="mt-1 text-sm text-gray-500">Vista general de tu estado de salud</p>
+        </div>
+
+        <!-- ZONA 1 & 2: Estado Actual y Alertas -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <!-- ZONA 1: Estado Actual (Hero) -->
+            <div class="lg:col-span-1">
+                <div class="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg shadow-lg p-6 border-2 border-yellow-200">
+                    <div class="text-center">
+                        <div class="flex justify-center mb-4">
+                            <div class="relative">
+                                <svg class="w-32 h-32 transform -rotate-90">
+                                    <circle cx="64" cy="64" r="56" stroke="#FEF3C7" stroke-width="8" fill="none"/>
+                                    <circle cx="64" cy="64" r="56" stroke="#F59E0B" stroke-width="8" fill="none"
+                                            stroke-dasharray="351.86" stroke-dashoffset="140.74" stroke-linecap="round"/>
+                                </svg>
+                                <div class="absolute inset-0 flex items-center justify-center">
+                                    <div class="text-center">
+                                        <div class="text-4xl font-bold text-yellow-600">5.5</div>
+                                        <div class="text-xs text-yellow-600 font-medium">/ 10</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <h2 class="text-2xl font-bold text-yellow-900 mb-2">Riesgo Moderado</h2>
+                        <p class="text-sm text-yellow-700 mb-4">de brote en los próximos 7 días</p>
+                        <div class="bg-white bg-opacity-50 rounded-lg p-3 mb-4">
+                            <p class="text-xs text-yellow-800">
+                                <i class="fas fa-calendar-alt mr-2"></i>
+                                Última actualización: 22 Nov 2025
+                            </p>
+                        </div>
+                        <button class="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-3 px-4 rounded-lg transition duration-150 shadow-md">
+                            <i class="fas fa-sync-alt mr-2"></i>
+                            Actualizar Predicción
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ZONA 2: Alertas y Recomendaciones -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-lg shadow-md p-6 mb-4">
+                    <div class="flex items-start mb-4">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-user-md text-blue-500 text-2xl"></i>
+                        </div>
+                        <div class="ml-3 flex-1">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2">Recomendación</h3>
+                            <p class="text-gray-700">
+                                Monitoree sus síntomas de cerca. Considere contactar a su médico si empeoran.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-yellow-50 border-l-4 border-yellow-400 rounded-lg shadow-md p-6">
+                    <div class="flex items-start mb-3">
+                        <i class="fas fa-exclamation-triangle text-yellow-500 text-xl mt-1"></i>
+                        <h3 class="ml-3 text-lg font-semibold text-gray-900">Alertas</h3>
+                    </div>
+                    <ul class="space-y-2">
+                        <li class="flex items-start">
+                            <i class="fas fa-dot-circle text-yellow-500 text-xs mt-1.5 mr-2"></i>
+                            <span class="text-gray-700">Escalada rápida de síntomas detectada</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-dot-circle text-yellow-500 text-xs mt-1.5 mr-2"></i>
+                            <span class="text-gray-700">Sangre en heces reportada en la última semana</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- ZONA 3: Gráfica de Evolución -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">Evolución (30 días)</h3>
+                    <p class="text-sm text-gray-500 flex items-center mt-1">
+                        <i class="fas fa-arrow-up text-red-500 mr-2"></i>
+                        <span class="text-red-600 font-medium">Tus síntomas están empeorando</span>
+                    </p>
+                </div>
+                <button class="text-blue-500 hover:text-blue-600 text-sm font-medium">
+                    Ver Historial Completo →
+                </button>
+            </div>
+            <div class="h-64">
+                <canvas id="evolutionChart"></canvas>
+            </div>
+        </div>
+
+        <!-- ZONA 4: Insights Personalizados (3 cards) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <!-- Card 1: Alimentos Trigger -->
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg shadow-md p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Alimentos a Reducir</h3>
+                    <i class="fas fa-exclamation-triangle text-yellow-500 text-2xl"></i>
+                </div>
+                <ul class="space-y-2 mb-4">
+                    <li class="flex justify-between items-center">
+                        <span class="text-gray-700">Lácteos</span>
+                        <span class="text-xs bg-yellow-200 text-yellow-800 px-2 py-1 rounded-full">r=0.51</span>
+                    </li>
+                    <li class="flex justify-between items-center">
+                        <span class="text-gray-700">Café</span>
+                        <span class="text-xs bg-yellow-200 text-yellow-800 px-2 py-1 rounded-full">r=0.48</span>
+                    </li>
+                </ul>
+                <p class="text-xs text-gray-600 italic">
+                    Correlación positiva con síntomas
+                </p>
+            </div>
+
+            <!-- Card 2: Alimentos Beneficiosos -->
+            <div class="bg-green-50 border border-green-200 rounded-lg shadow-md p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Alimentos Beneficiosos</h3>
+                    <i class="fas fa-check-circle text-green-500 text-2xl"></i>
+                </div>
+                <ul class="space-y-2 mb-4">
+                    <li class="flex justify-between items-center">
+                        <span class="text-gray-700">Verduras</span>
+                        <span class="text-xs bg-green-200 text-green-800 px-2 py-1 rounded-full">r=-0.64</span>
+                    </li>
+                    <li class="flex justify-between items-center">
+                        <span class="text-gray-700">Proteínas</span>
+                        <span class="text-xs bg-green-200 text-green-800 px-2 py-1 rounded-full">r=-0.52</span>
+                    </li>
+                </ul>
+                <p class="text-xs text-gray-600 italic">
+                    Reducen la severidad de síntomas
+                </p>
+            </div>
+
+            <!-- Card 3: Ejercicio -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg shadow-md p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Impacto del Ejercicio</h3>
+                    <i class="fas fa-running text-blue-500 text-2xl"></i>
+                </div>
+                <div class="text-center mb-4">
+                    <div class="text-4xl font-bold text-blue-600 mb-2">56%</div>
+                    <p class="text-sm text-gray-700">Reducción en severidad</p>
+                </div>
+                <p class="text-xs text-gray-600 italic">
+                    El ejercicio se asocia con menos síntomas
+                </p>
+            </div>
+        </div>
+
+        <!-- ZONA 5: Resumen Mensual (4 métricas) -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-lg shadow-md p-6 text-center">
+                <i class="fas fa-calendar-check text-gray-400 text-2xl mb-2"></i>
+                <div class="text-3xl font-bold text-gray-900">7</div>
+                <div class="text-sm text-gray-500 mt-1">Días Analizados</div>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-6 text-center">
+                <i class="fas fa-exclamation-circle text-red-400 text-2xl mb-2"></i>
+                <div class="text-3xl font-bold text-gray-900">2</div>
+                <div class="text-sm text-gray-500 mt-1">Días Riesgo Alto</div>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-6 text-center">
+                <i class="fas fa-chart-line text-green-400 text-2xl mb-2"></i>
+                <div class="text-3xl font-bold text-gray-900">85%</div>
+                <div class="text-sm text-gray-500 mt-1">Adherencia</div>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-6 text-center">
+                <i class="fas fa-heartbeat text-blue-400 text-2xl mb-2"></i>
+                <div class="text-3xl font-bold text-gray-900">4.2</div>
+                <div class="text-sm text-gray-500 mt-1">Severidad Media</div>
+            </div>
+        </div>
+
+        <!-- ZONA 6: Acciones Rápidas -->
+        <div class="flex flex-col sm:flex-row gap-4">
+            <button class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-4 px-6 rounded-lg shadow-lg transition duration-150 flex items-center justify-center">
+                <i class="fas fa-pen mr-2"></i>
+                Registrar Día de Hoy
+            </button>
+            <button class="flex-1 bg-white hover:bg-gray-50 text-gray-700 font-semibold py-4 px-6 rounded-lg shadow-md border border-gray-300 transition duration-150 flex items-center justify-center">
+                <i class="fas fa-file-pdf mr-2"></i>
+                Exportar Reporte PDF
+            </button>
+        </div>
+    </main>
+
+    <script>
+        // Gráfica de evolución
+        const ctx = document.getElementById('evolutionChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['1', '5', '10', '15', '20', '25', '30'],
+                datasets: [{
+                    label: 'Score de Riesgo',
+                    data: [3.2, 3.5, 3.8, 4.2, 4.5, 5.0, 5.5],
+                    borderColor: '#F59E0B',
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#F59E0B',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return 'Riesgo: ' + context.parsed.y + '/10';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 10,
+                        ticks: {
+                            stepSize: 2
+                        },
+                        grid: {
+                            color: '#E5E7EB'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Días'
+                        },
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
