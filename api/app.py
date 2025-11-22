@@ -488,10 +488,7 @@ async def predict_flare(request: PredictionRequest):
             confidence=round(confidence, 2),
             probabilities={k: round(v, 3) for k, v in all_probs.items()},
             cluster_info=cluster_info,
-            ibd_info=ibd_info,
-            # Legacy fields for backwards compatibility
-            cluster_id=cluster_id,
-            cluster_confidence=round(cluster_conf, 2) if cluster_conf is not None else None
+            ibd_info=ibd_info
         )
 
         # Extract current symptoms for factors and recommendation

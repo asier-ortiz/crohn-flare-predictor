@@ -363,10 +363,6 @@ class FlareRiskPrediction(BaseModel):
     cluster_info: Optional[ClusterInfo] = Field(default=None, description="Cluster assignment details (if using cluster-stratified model)")
     ibd_info: Optional[IBDInfo] = Field(default=None, description="IBD type and classification")
 
-    # Legacy fields (deprecated but kept for backwards compatibility)
-    cluster_id: Optional[int] = Field(default=None, description="DEPRECATED: Use cluster_info.cluster_id")
-    cluster_confidence: Optional[float] = Field(default=None, description="DEPRECATED: Use cluster_info.cluster_confidence")
-
     @field_validator("flare_risk")
     @classmethod
     def validate_risk_level(cls, v: str) -> str:
