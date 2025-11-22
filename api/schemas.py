@@ -3,6 +3,7 @@ Pydantic schemas for API request/response validation.
 """
 from datetime import date
 from typing import List, Optional
+from enum import Enum
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -283,11 +284,41 @@ class TemporalFeatures(BaseModel):
     }
 
 
+# Exercise level enum
+class ExerciseLevel(str, Enum):
+    """Exercise intensity levels."""
+    NONE = "none"
+    MODERATE = "moderate"
+    HIGH = "high"
+
+
 # Daily symptom record (must be defined before PredictionRequest)
 class DailySymptomRecord(BaseModel):
-    """Daily symptom record."""
+    """
+    Daily symptom record with optional food and exercise tracking.
+
+    Foods are tracked as free text (e.g., "pizza con queso", "ensalada césar")
+    and automatically categorized by the API into food groups for correlation analysis.
+
+    Exercise is tracked as a simple level (none, moderate, high) to analyze
+    its impact on symptom severity.
+    """
     date: date
     symptoms: Symptoms
+
+    # Food tracking (free text, categorized by API)
+    foods: Optional[List[str]] = Field(
+        default=None,
+        description="List of foods consumed (free text, will be categorized automatically)",
+        examples=[["pizza con queso", "café con leche", "ensalada"]]
+    )
+
+    # Exercise tracking (simple enum)
+    exercise: Optional[ExerciseLevel] = Field(
+        default=ExerciseLevel.NONE,
+        description="Exercise level for the day: none, moderate, or high",
+        examples=["moderate"]
+    )
 
 
 # Prediction requests
@@ -331,7 +362,9 @@ class PredictionRequest(BaseModel):
                                 "weight_change": 0.0,
                                 "blood_in_stool": False,
                                 "nausea": 1
-                            }
+                            },
+                            "foods": ["ensalada", "pollo a la plancha", "arroz blanco"],
+                            "exercise": "moderate"
                         },
                         {
                             "date": "2025-11-16",
@@ -343,7 +376,9 @@ class PredictionRequest(BaseModel):
                                 "weight_change": -0.2,
                                 "blood_in_stool": False,
                                 "nausea": 2
-                            }
+                            },
+                            "foods": ["café con leche", "tostadas", "verduras al vapor"],
+                            "exercise": "moderate"
                         },
                         {
                             "date": "2025-11-17",
@@ -355,7 +390,9 @@ class PredictionRequest(BaseModel):
                                 "weight_change": -0.3,
                                 "blood_in_stool": False,
                                 "nausea": 2
-                            }
+                            },
+                            "foods": ["pizza con queso", "café con leche"],
+                            "exercise": "none"
                         },
                         {
                             "date": "2025-11-18",
@@ -367,7 +404,9 @@ class PredictionRequest(BaseModel):
                                 "weight_change": -0.5,
                                 "blood_in_stool": False,
                                 "nausea": 3
-                            }
+                            },
+                            "foods": ["pasta carbonara", "helado"],
+                            "exercise": "none"
                         },
                         {
                             "date": "2025-11-19",
@@ -379,7 +418,9 @@ class PredictionRequest(BaseModel):
                                 "weight_change": -0.4,
                                 "blood_in_stool": False,
                                 "nausea": 3
-                            }
+                            },
+                            "foods": ["hamburguesa con queso", "patatas fritas", "café"],
+                            "exercise": "none"
                         },
                         {
                             "date": "2025-11-20",
@@ -391,7 +432,9 @@ class PredictionRequest(BaseModel):
                                 "weight_change": -0.6,
                                 "blood_in_stool": True,
                                 "nausea": 4
-                            }
+                            },
+                            "foods": ["pizza cuatro quesos", "comida picante"],
+                            "exercise": "none"
                         },
                         {
                             "date": "2025-11-21",
@@ -403,7 +446,9 @@ class PredictionRequest(BaseModel):
                                 "weight_change": -0.8,
                                 "blood_in_stool": True,
                                 "nausea": 4
-                            }
+                            },
+                            "foods": ["pan con mantequilla", "yogur", "café"],
+                            "exercise": "none"
                         }
                     ],
                     "demographics": {
@@ -483,6 +528,48 @@ class SymptomTrends(BaseModel):
     correlation_insights: Optional[List[str]] = Field(default=None, description="Human-readable interpretation of symptom correlations")
 
 
+class FoodInsight(BaseModel):
+    """Insight about a specific food category."""
+    correlation: float = Field(..., description="Correlation coefficient with symptom severity (-1 to 1)")
+    occurrences: int = Field(..., description="Number of days this food was consumed")
+    insight: str = Field(..., description="Human-readable interpretation")
+
+
+class ExerciseInsight(BaseModel):
+    """Insight about exercise impact."""
+    correlation: float = Field(..., description="Correlation coefficient with symptom severity (-1 to 1)")
+    days_with_exercise: int = Field(..., description="Number of days with exercise")
+    average_severity_with: float = Field(..., description="Average symptom severity on exercise days")
+    average_severity_without: float = Field(..., description="Average symptom severity on non-exercise days")
+    insight: str = Field(..., description="Human-readable interpretation")
+
+
+class LifestyleInsights(BaseModel):
+    """
+    Lifestyle insights from food and exercise tracking.
+
+    Analyzes correlations between food categories, exercise levels, and symptom severity
+    to provide personalized recommendations. Only available when 7+ days of data with
+    food/exercise tracking are provided.
+    """
+    trigger_foods: Optional[dict[str, FoodInsight]] = Field(
+        default=None,
+        description="Food categories that correlate with increased symptoms (correlation > 0.5)"
+    )
+    beneficial_foods: Optional[dict[str, FoodInsight]] = Field(
+        default=None,
+        description="Food categories that correlate with decreased symptoms (correlation < -0.5)"
+    )
+    exercise_impact: Optional[ExerciseInsight] = Field(
+        default=None,
+        description="Impact of exercise on symptom severity"
+    )
+    recommendations: Optional[List[str]] = Field(
+        default=None,
+        description="Actionable recommendations based on food and exercise patterns"
+    )
+
+
 class PredictionResponse(BaseModel):
     """
     Prediction result with optional trend analysis.
@@ -503,6 +590,10 @@ class PredictionResponse(BaseModel):
     analysis_period: Optional["AnalysisPeriod"] = Field(
         default=None,
         description="Time period analyzed for trends (only when 7+ days of data)"
+    )
+    lifestyle_insights: Optional["LifestyleInsights"] = Field(
+        default=None,
+        description="Food and exercise insights (only when 7+ days with food/exercise tracking)"
     )
 
 
