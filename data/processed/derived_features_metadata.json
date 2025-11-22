@@ -1,58 +1,57 @@
 {
+  "base_features": {
+    "symptom_features": [
+      "abdominal_pain",
+      "diarrhea",
+      "fatigue",
+      "nausea",
+      "blood_in_stool",
+      "fever"
+    ],
+    "demographic_features": [
+      "age",
+      "gender"
+    ],
+    "history_features": [
+      "disease_duration_years",
+      "previous_flares",
+      "last_flare_days_ago"
+    ],
+    "temporal_features": [
+      "month",
+      "day_of_week"
+    ]
+  },
   "derived_features": [
-    "total_symptom_score",
-    "gi_score",
-    "systemic_score",
     "red_flag_score",
     "symptom_count",
     "pain_trend_7d",
     "diarrhea_trend_7d",
     "fatigue_trend_7d",
-    "symptom_volatility_7d",
-    "symptom_change_rate",
-    "is_bad_day",
-    "days_since_low_symptoms",
     "flare_frequency",
     "recency_score",
     "disease_burden",
     "young_longduration",
     "pain_diarrhea_combo",
-    "blood_and_pain",
-    "vulnerable_state",
+    "blood_and_pain"
+  ],
+  "derived_features_removed": [
+    "total_symptom_score",
+    "gi_score",
+    "systemic_score",
     "symptom_severity_category",
+    "symptom_volatility_7d",
+    "symptom_change_rate",
+    "is_bad_day",
+    "days_since_low_symptoms",
+    "vulnerable_state",
     "gi_dominant"
   ],
-  "categories": {
-    "symptom_aggregations": [
-      "total_symptom_score",
-      "gi_score",
-      "systemic_score",
-      "red_flag_score",
-      "symptom_count"
-    ],
-    "temporal_features": [
-      "pain_trend_7d",
-      "diarrhea_trend_7d",
-      "fatigue_trend_7d",
-      "symptom_volatility_7d",
-      "symptom_change_rate",
-      "days_since_low_symptoms"
-    ],
-    "history_features": [
-      "flare_frequency",
-      "recency_score",
-      "disease_burden",
-      "young_longduration"
-    ],
-    "interaction_features": [
-      "pain_diarrhea_combo",
-      "blood_and_pain",
-      "vulnerable_state",
-      "symptom_severity_category",
-      "gi_dominant"
-    ]
-  },
-  "n_derived_features": 21,
+  "n_base_features": 13,
+  "n_derived_features": 11,
+  "n_total_features": 24,
   "crohn_records": 7618,
-  "cu_records": 6860
+  "crohn_users": 897,
+  "cu_records": 6860,
+  "cu_users": 589
 }

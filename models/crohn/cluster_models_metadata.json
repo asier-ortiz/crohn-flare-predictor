@@ -1,7 +1,8 @@
 {
   "ibd_type": "crohn",
-  "trained_date": "2025-11-21T08:51:11.177609",
   "n_clusters": 3,
+  "n_samples": 7618,
+  "n_features": 34,
   "features": [
     "abdominal_pain",
     "blood_in_stool",
@@ -10,7 +11,6 @@
     "fever",
     "nausea",
     "age",
-    "gender",
     "disease_duration_years",
     "previous_flares",
     "last_flare_days_ago",
@@ -26,7 +26,6 @@
     "fatigue_trend_7d",
     "symptom_volatility_7d",
     "symptom_change_rate",
-    "is_bad_day",
     "days_since_low_symptoms",
     "flare_frequency",
     "recency_score",
@@ -36,52 +35,14 @@
     "blood_and_pain",
     "vulnerable_state",
     "symptom_severity_category",
-    "gi_dominant"
+    "gi_dominant",
+    "gender_M",
+    "gender_O"
   ],
-  "target": "risk_level",
-  "model_type": "RandomForestClassifier",
-  "clusters": {
-    "0": {
-      "model_file": "rf_severity_classifier_cluster_0.pkl",
-      "metrics": {
-        "accuracy": 0.9166666666666666,
-        "f1_macro": 0.9008511617207269,
-        "f1_low": 0.9565217391304348,
-        "f1_medium": 0.8888888888888888,
-        "f1_high": 0.8571428571428571,
-        "recall_high": 1.0,
-        "precision_high": 0.75
-      },
-      "n_train": 244,
-      "n_test": 48
-    },
-    "1": {
-      "model_file": "rf_severity_classifier_cluster_1.pkl",
-      "metrics": {
-        "accuracy": 0.9932584269662922,
-        "f1_macro": 0.9858876912227387,
-        "f1_low": 0.9959636730575177,
-        "f1_medium": 0.9860896445131375,
-        "f1_high": 0.975609756097561,
-        "recall_high": 1.0,
-        "precision_high": 0.9523809523809523
-      },
-      "n_train": 5277,
-      "n_test": 1335
-    },
-    "2": {
-      "model_file": "rf_severity_classifier_cluster_2.pkl",
-      "metrics": {
-        "accuracy": 0.9565217391304348,
-        "f1_macro": 0.9463869463869464,
-        "f1_low": 0.9696969696969697,
-        "f1_medium": 0.9230769230769231,
-        "f1_high": 0.0,
-        "recall_high": 0.0,
-        "precision_high": 0.0
-      },
-      "n_train": 100,
-      "n_test": 23
-    }
+  "global_accuracy": 0.994750656167979,
+  "cluster_models": {
+    "cluster_0": "rf_severity_classifier_cluster_0.pkl",
+    "cluster_1": "rf_severity_classifier_cluster_1.pkl",
+    "cluster_2": "rf_severity_classifier_cluster_2.pkl"
   }
 }
