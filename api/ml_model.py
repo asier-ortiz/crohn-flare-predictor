@@ -1272,7 +1272,7 @@ class TemporalPredictor:
         demographics: Dict,
         history: Dict,
         daily_records: List[Dict] = None
-    ) -> Tuple[str, float, float, List[str], Dict[str, float], None, None, str, str, None]:
+    ) -> Tuple[str, float, float, List[str], Dict[str, float], None, None, str, str, Optional[str]]:
         """
         Make temporal prediction (T+7 days).
 
@@ -1284,14 +1284,16 @@ class TemporalPredictor:
 
         Returns:
             Tuple of (risk_level, probability, confidence, contributors,
-                     all_probabilities, None, None, model_source, ibd_type, None)
+                     all_probabilities, None, None, model_source, ibd_type, montreal_code)
             Note: Returns None for cluster fields since temporal models don't use clusters
         """
-        # Get IBD type
+        # Get IBD type and Montreal classification
         ibd_type = demographics.get('ibd_type', 'crohn')
         if ibd_type not in ['crohn', 'ulcerative_colitis']:
             logger.warning(f"Invalid ibd_type '{ibd_type}', defaulting to 'crohn'")
             ibd_type = 'crohn'
+
+        montreal_code = demographics.get('montreal_location', None)
 
         # Check if model is loaded
         if not self.is_loaded.get(ibd_type, False):
@@ -1331,7 +1333,7 @@ class TemporalPredictor:
 
             # Return 10-tuple (cluster fields are None for temporal model)
             return (risk_level, probability, confidence, contributors, all_probs,
-                   None, None, "temporal", ibd_type, None)
+                   None, None, "temporal", ibd_type, montreal_code)
 
         except Exception as e:
             logger.error(f"Error in temporal prediction: {e}", exc_info=True)
