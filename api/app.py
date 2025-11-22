@@ -26,8 +26,16 @@ from api.schemas import (
     PredictionMetadata,
     AnalysisPeriod,
     SymptomTrends,
+    LifestyleInsights,
+    FoodInsight,
+    ExerciseInsight,
     ModelInfoResponse,
     ModelMetrics,
+)
+from api.lifestyle import (
+    calculate_food_correlations,
+    calculate_exercise_impact,
+    generate_lifestyle_recommendations,
 )
 from api.constants import CROHN_CLUSTER_DESCRIPTIONS, UC_CLUSTER_DESCRIPTIONS
 
@@ -435,6 +443,95 @@ def calculate_trends(daily_records: List) -> tuple:
     return trends, analysis_period
 
 
+def calculate_lifestyle_insights(daily_records: List) -> Optional[LifestyleInsights]:
+    """
+    Calculate lifestyle insights from food and exercise tracking.
+
+    Args:
+        daily_records: List of DailySymptomRecord objects with foods and exercise
+
+    Returns:
+        LifestyleInsights object or None if insufficient data
+    """
+    # Need at least 7 days
+    if len(daily_records) < 7:
+        return None
+
+    # Check if we have food or exercise data
+    has_food_data = any(record.foods for record in daily_records)
+    has_exercise_data = any(record.exercise and record.exercise != 'none' for record in daily_records)
+
+    if not has_food_data and not has_exercise_data:
+        return None
+
+    # Convert records to dict format for analysis functions
+    records_dict = []
+    for record in daily_records:
+        records_dict.append({
+            'date': record.date,
+            'symptoms': record.symptoms,  # Keep as Symptoms object
+            'foods': record.foods if record.foods else [],
+            'exercise': record.exercise if record.exercise else 'none',
+        })
+
+    # Calculate food correlations
+    trigger_foods_data = None
+    beneficial_foods_data = None
+    if has_food_data:
+        trigger_foods, beneficial_foods = calculate_food_correlations(
+            records_dict,
+            calculate_symptom_severity
+        )
+
+        # Convert to FoodInsight objects
+        if trigger_foods:
+            trigger_foods_data = {
+                category: FoodInsight(**data)
+                for category, data in trigger_foods.items()
+            }
+
+        if beneficial_foods:
+            beneficial_foods_data = {
+                category: FoodInsight(**data)
+                for category, data in beneficial_foods.items()
+            }
+
+    # Calculate exercise impact
+    exercise_impact_data = None
+    if has_exercise_data:
+        exercise_impact = calculate_exercise_impact(
+            records_dict,
+            calculate_symptom_severity
+        )
+        if exercise_impact:
+            exercise_impact_data = ExerciseInsight(**exercise_impact)
+
+    # Generate recommendations
+    recommendations = None
+    if trigger_foods_data or beneficial_foods_data or exercise_impact_data:
+        # Convert back to dict format for recommendation function
+        trigger_dict = {k: v.model_dump() for k, v in trigger_foods_data.items()} if trigger_foods_data else None
+        beneficial_dict = {k: v.model_dump() for k, v in beneficial_foods_data.items()} if beneficial_foods_data else None
+        exercise_dict = exercise_impact_data.model_dump() if exercise_impact_data else None
+
+        recommendations = generate_lifestyle_recommendations(
+            trigger_dict,
+            beneficial_dict,
+            exercise_dict
+        )
+
+    # Only return insights if we have something
+    if not trigger_foods_data and not beneficial_foods_data and not exercise_impact_data:
+        return None
+
+    return LifestyleInsights(
+        trigger_foods=trigger_foods_data,
+        beneficial_foods=beneficial_foods_data,
+        exercise_impact=exercise_impact_data,
+        recommendations=recommendations
+    )
+
+
 # API Endpoints
 
 @app.get("/", tags=["General"])
@@ -645,13 +742,25 @@ async def predict_flare(request: PredictionRequest):
                 logger.warning(f"Failed to calculate trends: {e}")
                 # Continue without trends
 
+        # Calculate lifestyle insights if we have 7+ days with food/exercise data
+        lifestyle_insights = None
+        if len(request.daily_records) >= 7:
+            try:
+                lifestyle_insights = calculate_lifestyle_insights(request.daily_records)
+                if lifestyle_insights:
+                    logger.info(f"Calculated lifestyle insights: {len(lifestyle_insights.trigger_foods or {})} trigger foods, {len(lifestyle_insights.beneficial_foods or {})} beneficial foods")
+            except Exception as e:
+                logger.warning(f"Failed to calculate lifestyle insights: {e}")
+                # Continue without lifestyle insights
+
         return PredictionResponse(
             prediction=prediction,
             factors=factors,
             recommendation=recommendation,
             metadata=metadata,
             trends=trends,
-            analysis_period=analysis_period
+            analysis_period=analysis_period,
+            lifestyle_insights=lifestyle_insights
         )
 
     except Exception as e:
