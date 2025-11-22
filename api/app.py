@@ -251,6 +251,60 @@ def get_recommendation(risk_level: str, symptoms) -> str:
     return recommendation
 
 
+def calculate_symptom_correlations(sorted_records: List) -> dict:
+    """
+    Calculate correlations between symptoms over time.
+
+    Args:
+        sorted_records: Sorted list of DailySymptomRecord objects
+
+    Returns:
+        Dictionary with symptom pair correlations (only significant ones > 0.5)
+    """
+    import numpy as np
+
+    # Extract time series for each symptom
+    symptom_names = ['abdominal_pain', 'diarrhea', 'fatigue', 'nausea', 'weight_change',
+                     'blood_in_stool', 'fever']
+
+    symptom_series = {}
+    for symptom in symptom_names:
+        values = []
+        for record in sorted_records:
+            val = getattr(record.symptoms, symptom)
+            # Convert boolean to int for correlation
+            if isinstance(val, bool):
+                val = 1 if val else 0
+            values.append(val)
+        symptom_series[symptom] = np.array(values)
+
+    # Calculate correlations between symptom pairs
+    correlations = {}
+    symptom_list = list(symptom_series.keys())
+
+    for i in range(len(symptom_list)):
+        for j in range(i + 1, len(symptom_list)):
+            symptom_a = symptom_list[i]
+            symptom_b = symptom_list[j]
+
+            series_a = symptom_series[symptom_a]
+            series_b = symptom_series[symptom_b]
+
+            # Skip if either series has no variance (all same values)
+            if np.std(series_a) == 0 or np.std(series_b) == 0:
+                continue
+
+            # Calculate Pearson correlation
+            correlation = np.corrcoef(series_a, series_b)[0, 1]
+
+            # Only include significant correlations (> 0.5 absolute value)
+            if abs(correlation) >= 0.5:
+                pair_name = f"{symptom_a}_vs_{symptom_b}"
+                correlations[pair_name] = round(correlation, 2)
+
+    return correlations if correlations else None
+
+
 def calculate_trends(daily_records: List) -> tuple:
     """
     Calculate temporal trends from daily symptom records.
@@ -297,10 +351,16 @@ def calculate_trends(daily_records: List) -> tuple:
     if recent_blood:
         concerning.append("Blood in stool reported in last week")
 
+    # Calculate symptom correlations
+    symptom_correlations = None
+    if len(sorted_records) >= 7:
+        symptom_correlations = calculate_symptom_correlations(sorted_records)
+
     trends = SymptomTrends(
         overall_trend=overall_trend,
         severity_change=round(severity_change, 2),
         concerning_patterns=concerning,
+        symptom_correlations=symptom_correlations,
     )
 
     analysis_period = AnalysisPeriod(
