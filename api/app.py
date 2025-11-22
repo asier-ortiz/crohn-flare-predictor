@@ -251,6 +251,66 @@ def get_recommendation(risk_level: str, symptoms) -> str:
     return recommendation
 
 
+def interpret_correlations(correlations: dict) -> List[str]:
+    """
+    Generate human-readable insights from symptom correlations.
+
+    Args:
+        correlations: Dictionary of symptom pair correlations
+
+    Returns:
+        List of interpretive insights in Spanish
+    """
+    if not correlations:
+        return None
+
+    insights = []
+
+    # Translate symptom names to Spanish
+    symptom_names_es = {
+        'abdominal_pain': 'dolor abdominal',
+        'diarrhea': 'diarrea',
+        'fatigue': 'fatiga',
+        'nausea': 'náuseas',
+        'weight_change': 'cambio de peso',
+        'blood_in_stool': 'sangre en heces',
+        'fever': 'fiebre'
+    }
+
+    # Sort by absolute correlation value (strongest first)
+    sorted_corrs = sorted(correlations.items(), key=lambda x: abs(x[1]), reverse=True)
+
+    # Take top 3-5 most significant correlations
+    for pair_name, corr_value in sorted_corrs[:5]:
+        symptoms = pair_name.replace('_vs_', ' ').split(' ')
+        symptom_a_key = '_'.join(symptoms[:len(symptoms)//2])
+        symptom_b_key = '_'.join(symptoms[len(symptoms)//2:])
+
+        # Extract actual symptom names from the pair
+        parts = pair_name.split('_vs_')
+        if len(parts) == 2:
+            symptom_a = symptom_names_es.get(parts[0], parts[0])
+            symptom_b = symptom_names_es.get(parts[1], parts[1])
+        else:
+            continue
+
+        # Generate insight based on correlation strength and direction
+        if corr_value >= 0.9:
+            insights.append(f"Correlación muy fuerte: {symptom_a} y {symptom_b} casi siempre varían juntos (r={corr_value})")
+        elif corr_value >= 0.7:
+            insights.append(f"Correlación fuerte: cuando {symptom_a} aumenta, {symptom_b} tiende a aumentar también (r={corr_value})")
+        elif corr_value >= 0.5:
+            insights.append(f"Correlación moderada: {symptom_a} y {symptom_b} muestran cierta relación (r={corr_value})")
+        elif corr_value <= -0.9:
+            insights.append(f"Correlación inversa muy fuerte: cuando {symptom_a} aumenta, {symptom_b} disminuye marcadamente (r={corr_value})")
+        elif corr_value <= -0.7:
+            insights.append(f"Correlación inversa fuerte: {symptom_a} y {symptom_b} tienden a moverse en direcciones opuestas (r={corr_value})")
+        elif corr_value <= -0.5:
+            insights.append(f"Correlación inversa moderada: {symptom_a} y {symptom_b} muestran relación opuesta (r={corr_value})")
+
+    return insights if insights else None
+
+
 def calculate_symptom_correlations(sorted_records: List) -> dict:
     """
     Calculate correlations between symptoms over time.
@@ -339,9 +399,9 @@ def calculate_trends(daily_records: List) -> tuple:
     # Identify concerning patterns
     concerning = []
     if max(severities[-3:]) > 0.7:
-        concerning.append("High symptom severity in recent days")
+        concerning.append("Severidad alta de síntomas en días recientes")
     if severity_change > 0.2:
-        concerning.append("Rapid symptom escalation detected")
+        concerning.append("Escalada rápida de síntomas detectada")
 
     # Blood in stool check
     recent_blood = any(
@@ -349,18 +409,21 @@ def calculate_trends(daily_records: List) -> tuple:
         for record in sorted_records[-7:]
     )
     if recent_blood:
-        concerning.append("Blood in stool reported in last week")
+        concerning.append("Sangre en heces reportada en la última semana")
 
     # Calculate symptom correlations
     symptom_correlations = None
+    correlation_insights = None
     if len(sorted_records) >= 7:
         symptom_correlations = calculate_symptom_correlations(sorted_records)
+        correlation_insights = interpret_correlations(symptom_correlations)
 
     trends = SymptomTrends(
         overall_trend=overall_trend,
         severity_change=round(severity_change, 2),
         concerning_patterns=concerning,
         symptom_correlations=symptom_correlations,
+        correlation_insights=correlation_insights,
     )
 
     analysis_period = AnalysisPeriod(
@@ -484,18 +547,22 @@ async def predict_flare(request: PredictionRequest):
     ## Ejemplo de Uso
 
     ```python
-    # Con 7+ días de historial (óptimo)
+    # Con 7+ días de historial (óptimo para análisis de tendencias y correlaciones)
     response = requests.post("http://localhost:8001/predict", json={
         "daily_records": [
-            {"date": "2024-11-15", "symptoms": {"abdominal_pain": 5, "diarrhea": 4, "fatigue": 3, "fever": False}},
-            {"date": "2024-11-16", "symptoms": {"abdominal_pain": 6, "diarrhea": 5, "fatigue": 4, "fever": False}},
-            # ... 5 días más ...
-            {"date": "2024-11-22", "symptoms": {"abdominal_pain": 7, "diarrhea": 6, "fatigue": 5, "fever": False}}
+            {"date": "2025-11-15", "symptoms": {"abdominal_pain": 3, "diarrhea": 2, "fatigue": 2, "fever": False, "weight_change": 0.0, "blood_in_stool": False, "nausea": 1}},
+            {"date": "2025-11-16", "symptoms": {"abdominal_pain": 4, "diarrhea": 3, "fatigue": 3, "fever": False, "weight_change": -0.2, "blood_in_stool": False, "nausea": 2}},
+            {"date": "2025-11-17", "symptoms": {"abdominal_pain": 4, "diarrhea": 4, "fatigue": 3, "fever": False, "weight_change": -0.3, "blood_in_stool": False, "nausea": 2}},
+            {"date": "2025-11-18", "symptoms": {"abdominal_pain": 5, "diarrhea": 5, "fatigue": 4, "fever": False, "weight_change": -0.5, "blood_in_stool": False, "nausea": 3}},
+            {"date": "2025-11-19", "symptoms": {"abdominal_pain": 6, "diarrhea": 5, "fatigue": 5, "fever": False, "weight_change": -0.4, "blood_in_stool": False, "nausea": 3}},
+            {"date": "2025-11-20", "symptoms": {"abdominal_pain": 6, "diarrhea": 6, "fatigue": 5, "fever": False, "weight_change": -0.6, "blood_in_stool": True, "nausea": 4}},
+            {"date": "2025-11-21", "symptoms": {"abdominal_pain": 7, "diarrhea": 6, "fatigue": 6, "fever": False, "weight_change": -0.8, "blood_in_stool": True, "nausea": 4}}
         ],
         "demographics": {
             "age": 32,
             "gender": "F",
             "disease_duration_years": 5.0,
+            "bmi": 22.5,
             "ibd_type": "crohn",
             "montreal_location": "L3"
         },
@@ -503,6 +570,8 @@ async def predict_flare(request: PredictionRequest):
             "previous_flares": 3,
             "medications": ["mesalamine", "azathioprine"],
             "last_flare_days_ago": 120,
+            "surgery_history": False,
+            "smoking_status": "never",
             "cumulative_flare_days": 45
         }
     })
